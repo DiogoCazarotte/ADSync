@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="ADSync.Api/ADSync.Api.csproj" />
+  <Project Path="ADSync.Application/ADSync.Application.csproj" />
+  <Project Path="ADSync.Client/ADSync.Client.csproj" />
+  <Project Path="ADSync.Domain/ADSync.Domain.csproj" />
+  <Project Path="ADSync.Infrastructure/ADSync.Infrastructure.csproj" />
+</Solution>
