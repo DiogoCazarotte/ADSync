@@ -12,11 +12,10 @@ namespace ADSync.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
-                .Annotation("Npgsql:Enum:prioridade_os_enum.PrioridadeOS", "Baixa,Media,Alta,Critica")
-                .Annotation("Npgsql:Enum:status_os_enum.StatusOS", "Aberta,EmAndamento,Pausada,Concluida,Cancelada")
-                .Annotation("Npgsql:Enum:tipo_registro_tempo_enum.TipoRegistroTempo", "Inicio,Pausa,Retomada,Conclusao")
-                .Annotation("Npgsql:Enum:tipo_usuario_enum.TipoUsuario", "Operador,Tecnico,Gestor");
+            // Os 4 enums (prioridade_os_enum, status_os_enum, tipo_registro_tempo_enum,
+            // tipo_usuario_enum) ja existem no banco, criados manualmente no Supabase.
+            // Por isso NAO chamamos migrationBuilder.AlterDatabase() aqui -- isso evitaria
+            // um erro de "type already exists" na hora de aplicar a migration.
 
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
@@ -55,48 +54,6 @@ namespace ADSync.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUsers", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "causas_falha",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    descricao = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
-                    ativo = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_causas_falha", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "equipamentos",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    nome = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
-                    codigo_patrimonio = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    setor = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    ativo = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_equipamentos", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "pecas",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    codigo = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    nome = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
-                    quantidade_estoque = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_pecas", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -205,123 +162,15 @@ namespace ADSync.Infrastructure.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "usuarios",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    nome = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
-                    email = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
-                    cpf = table.Column<string>(type: "character varying(14)", maxLength: 14, nullable: true),
-                    tipo_usuario = table.Column<int>(type: "tipo_usuario_enum", nullable: false),
-                    ativo = table.Column<bool>(type: "boolean", nullable: false),
-                    data_criacao = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_usuarios", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_usuarios_AspNetUsers_id",
-                        column: x => x.id,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ordens_servico",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    client_sync_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    numero_os = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    equipamento_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    operador_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tecnico_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    causa_falha_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    descricao_problema = table.Column<string>(type: "text", nullable: false),
-                    status = table.Column<int>(type: "status_os_enum", nullable: false),
-                    prioridade = table.Column<int>(type: "prioridade_os_enum", nullable: false),
-                    data_abertura = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    data_conclusao = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    observacoes_tecnicas = table.Column<string>(type: "text", nullable: true),
-                    criado_offline = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ordens_servico", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_ordens_servico_causas_falha_causa_falha_id",
-                        column: x => x.causa_falha_id,
-                        principalTable: "causas_falha",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_ordens_servico_equipamentos_equipamento_id",
-                        column: x => x.equipamento_id,
-                        principalTable: "equipamentos",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ordens_servico_usuarios_operador_id",
-                        column: x => x.operador_id,
-                        principalTable: "usuarios",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ordens_servico_usuarios_tecnico_id",
-                        column: x => x.tecnico_id,
-                        principalTable: "usuarios",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "os_pecas_utilizadas",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ordem_servico_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    peca_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    quantidade = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_os_pecas_utilizadas", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_os_pecas_utilizadas_ordens_servico_ordem_servico_id",
-                        column: x => x.ordem_servico_id,
-                        principalTable: "ordens_servico",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_os_pecas_utilizadas_pecas_peca_id",
-                        column: x => x.peca_id,
-                        principalTable: "pecas",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "os_registros_tempo",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ordem_servico_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tipo_registro = table.Column<int>(type: "tipo_registro_tempo_enum", nullable: false),
-                    timestamp = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    motivo_pausa = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_os_registros_tempo", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_os_registros_tempo_ordens_servico_ordem_servico_id",
-                        column: x => x.ordem_servico_id,
-                        principalTable: "ordens_servico",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            // Esta e a unica alteracao real nas suas 8 tabelas existentes:
+            // liga "usuarios" ao ApplicationUser do Identity, pelo mesmo Id.
+            migrationBuilder.AddForeignKey(
+                name: "FK_usuarios_AspNetUsers_id",
+                table: "usuarios",
+                column: "id",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
@@ -359,98 +208,15 @@ namespace ADSync.Infrastructure.Migrations
                 table: "AspNetUsers",
                 column: "NormalizedUserName",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_causas_falha_descricao",
-                table: "causas_falha",
-                column: "descricao",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_equipamentos_codigo_patrimonio",
-                table: "equipamentos",
-                column: "codigo_patrimonio",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ordens_servico_causa_falha_id",
-                table: "ordens_servico",
-                column: "causa_falha_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ordens_servico_client_sync_id",
-                table: "ordens_servico",
-                column: "client_sync_id",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ordens_servico_data_abertura",
-                table: "ordens_servico",
-                column: "data_abertura");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ordens_servico_equipamento_id",
-                table: "ordens_servico",
-                column: "equipamento_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ordens_servico_numero_os",
-                table: "ordens_servico",
-                column: "numero_os",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ordens_servico_operador_id",
-                table: "ordens_servico",
-                column: "operador_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ordens_servico_status",
-                table: "ordens_servico",
-                column: "status");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ordens_servico_tecnico_id",
-                table: "ordens_servico",
-                column: "tecnico_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_os_pecas_utilizadas_ordem_servico_id",
-                table: "os_pecas_utilizadas",
-                column: "ordem_servico_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_os_pecas_utilizadas_peca_id",
-                table: "os_pecas_utilizadas",
-                column: "peca_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_os_registros_tempo_ordem_servico_id",
-                table: "os_registros_tempo",
-                column: "ordem_servico_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_pecas_codigo",
-                table: "pecas",
-                column: "codigo",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_usuarios_cpf",
-                table: "usuarios",
-                column: "cpf",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_usuarios_email",
-                table: "usuarios",
-                column: "email",
-                unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_usuarios_AspNetUsers_id",
+                table: "usuarios");
+
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
 
@@ -467,28 +233,7 @@ namespace ADSync.Infrastructure.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "os_pecas_utilizadas");
-
-            migrationBuilder.DropTable(
-                name: "os_registros_tempo");
-
-            migrationBuilder.DropTable(
                 name: "AspNetRoles");
-
-            migrationBuilder.DropTable(
-                name: "pecas");
-
-            migrationBuilder.DropTable(
-                name: "ordens_servico");
-
-            migrationBuilder.DropTable(
-                name: "causas_falha");
-
-            migrationBuilder.DropTable(
-                name: "equipamentos");
-
-            migrationBuilder.DropTable(
-                name: "usuarios");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");

@@ -22,7 +22,13 @@ dataSourceBuilder.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: ne
 dataSourceBuilder.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: new NpgsqlNullNameTranslator());
 var dataSource = dataSourceBuilder.Build();
 
-builder.Services.AddDbContext<AdSyncDbContext>(options => options.UseNpgsql(dataSource));
+builder.Services.AddDbContext<AdSyncDbContext>(options => options.UseNpgsql(dataSource, o =>
+{
+    o.MapEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: new NpgsqlNullNameTranslator());
+    o.MapEnum<StatusOS>("status_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
+    o.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
+    o.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: new NpgsqlNullNameTranslator());
+}));
 
 // ---------- Identity (login, senha, papeis de usuario) ----------
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -47,6 +53,9 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    using var scope = app.Services.CreateScope();
+    await DbSeeder.SeedAsync(scope.ServiceProvider, app.Configuration["Seed:SenhaDev"]);
 }
 
 app.UseHttpsRedirection();
