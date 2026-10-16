@@ -1,23 +1,31 @@
-@ADSync.Api_HostAddress = http://localhost:5218
-
-GET {{ADSync.Api_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
 @host = https://localhost:7092
 
-### Abrir O.S.
+### Login (Renata, operadora)
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "carlos.tecnico@sustennutri.com.br",
+  "senha": ""
+}
+
+### Quem sou eu?
+GET {{host}}/api/auth/eu
+Authorization: Bearer {{login.response.body.$.token}}
+
+### Abrir O.S. (precisa de token)
 POST {{host}}/api/ordensservico
+Authorization: Bearer {{login.response.body.$.token}}
 Content-Type: application/json
 
 {
   "equipamentoId": "01a13847-972e-713e-bede-ddfba54eb2b1",
-  "operadorId": "c7ab1278-601e-47d9-a03a-b6158b453e5c",
-  "descricaoProblema": "Máquina travando a agulha",
+  "descricaoProblema": "Teste com login",
   "prioridade": "Alta",
-  "clientSyncId": "3f2b8c1e-5a4d-4e8b-9c1a-7d6e5f4a3b2c",
+  "clientSyncId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
   "criadoOffline": false
 }
 
-### Listar O.S.
+### Listar O.S. (sem token, deve dar 401)
 GET {{host}}/api/ordensservico
