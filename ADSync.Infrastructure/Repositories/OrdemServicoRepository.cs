@@ -25,18 +25,40 @@ public class OrdemServicoRepository : IOrdemServicoRepository
             .FirstOrDefaultAsync(os => os.Id == id);
     }
 
+    public async Task<OrdemServico?> ObterDetalhadoAsync(Guid id)
+    {
+        return await _context.OrdensServico
+            .Include(os => os.Equipamento)
+            .Include(os => os.Operador)
+            .Include(os => os.Tecnico)
+            .Include(os => os.CausaFalha)
+            .Include(os => os.RegistrosTempo)
+            .Include(os => os.PecasUtilizadas).ThenInclude(p => p.Peca)
+            .AsSplitQuery() // evita juntar tudo numa consulta gigante com várias coleções
+            .FirstOrDefaultAsync(os => os.Id == id);
+    }
+
     // Usado para idempotência: evita criar uma O.S. duplicada se o técnico
     // sincronizar o mesmo registro offline mais de uma vez.
     public async Task<OrdemServico?> ObterPorClientSyncIdAsync(Guid clientSyncId)
     {
         return await _context.OrdensServico
+            .Include(os => os.Equipamento)
+            .Include(os => os.Operador)
+            .Include(os => os.Tecnico)
             .FirstOrDefaultAsync(os => os.ClientSyncId == clientSyncId);
     }
 
-    public async Task<List<OrdemServico>> ListarAsync(StatusOS? status = null, PrioridadeOS? prioridade = null)
+    public async Task<List<OrdemServico>> ListarAsync(
+        StatusOS? status = null,
+        PrioridadeOS? prioridade = null,
+        Guid? tecnicoId = null,
+        Guid? operadorId = null)
     {
         var query = _context.OrdensServico
+            .AsNoTracking()
             .Include(os => os.Equipamento)
+            .Include(os => os.Operador)
             .Include(os => os.Tecnico)
             .AsQueryable();
 
@@ -45,6 +67,12 @@ public class OrdemServicoRepository : IOrdemServicoRepository
 
         if (prioridade is not null)
             query = query.Where(os => os.Prioridade == prioridade);
+
+        if (tecnicoId is not null)
+            query = query.Where(os => os.TecnicoId == tecnicoId);
+
+        if (operadorId is not null)
+            query = query.Where(os => os.OperadorId == operadorId);
 
         return await query.OrderByDescending(os => os.DataAbertura).ToListAsync();
     }

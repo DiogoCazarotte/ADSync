@@ -1,6 +1,6 @@
 namespace ADSync.Application.DTOs;
 
-// O que a API devolve para o app (nunca a entidade do Domain diretamente)
+// Versão resumida: usada nas listagens e ao abrir uma O.S.
 public class OrdemServicoDto
 {
     public Guid Id { get; set; }
@@ -8,6 +8,7 @@ public class OrdemServicoDto
     public string Status { get; set; } = string.Empty;
     public string Prioridade { get; set; } = string.Empty;
     public string EquipamentoNome { get; set; } = string.Empty;
+    public string OperadorNome { get; set; } = string.Empty;
     public string? TecnicoNome { get; set; }
     public string DescricaoProblema { get; set; } = string.Empty;
     public DateTimeOffset DataAbertura { get; set; }

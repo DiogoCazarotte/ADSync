@@ -24,6 +24,7 @@ public static class DbSeeder
         await SeedUsuariosAsync(context, userManager, senhaDev, logger);
         await SeedEquipamentosAsync(context, logger);
         await SeedCausasFalhaAsync(context, logger);
+        await SeedPecasAsync(context, logger);
     }
 
     // ---------- Roles do Identity (uma para cada TipoUsuario) ----------
@@ -158,5 +159,36 @@ public static class DbSeeder
         context.CausasFalha.AddRange(descricoes.Select(d => new CausaFalha { Descricao = d }));
         await context.SaveChangesAsync();
         logger.LogInformation("{Qtd} causas de falha criadas.", descricoes.Length);
+    }
+
+    // ---------- Peças de reposição (exemplos para teste do fluxo, RF04) ----------
+    private static async Task SeedPecasAsync(AdSyncDbContext context, ILogger logger)
+    {
+        if (await context.Pecas.AnyAsync())
+            return;
+
+        var pecas = new[]
+        {
+            (Codigo: "ROL-6204", Nome: "Rolamento 6204 ZZ", Estoque: 12),
+            (Codigo: "ROL-6205", Nome: "Rolamento 6205 ZZ", Estoque: 8),
+            (Codigo: "COR-A45", Nome: "Correia em V A45", Estoque: 6),
+            (Codigo: "AGU-DPX5", Nome: "Agulha industrial DPx5 nº 16", Estoque: 100),
+            (Codigo: "SEN-IND-M12", Nome: "Sensor indutivo M12", Estoque: 5),
+            (Codigo: "PEN-3MM", Nome: "Peneira de aço 3 mm", Estoque: 4),
+            (Codigo: "RET-35527", Nome: "Retentor 35x52x7", Estoque: 10),
+            (Codigo: "FUS-10A", Nome: "Fusível 10 A", Estoque: 30),
+            (Codigo: "OLE-ISO220", Nome: "Óleo para redutor ISO VG 220 (1 L)", Estoque: 20),
+            (Codigo: "GRA-EP2", Nome: "Graxa EP2 (cartucho)", Estoque: 15),
+        };
+
+        context.Pecas.AddRange(pecas.Select(p => new Peca
+        {
+            Codigo = p.Codigo,
+            Nome = p.Nome,
+            QuantidadeEstoque = p.Estoque
+        }));
+
+        await context.SaveChangesAsync();
+        logger.LogInformation("{Qtd} peças criadas.", pecas.Length);
     }
 }

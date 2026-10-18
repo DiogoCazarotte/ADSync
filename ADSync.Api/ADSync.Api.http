@@ -1,31 +1,144 @@
 @host = https://localhost:7092
 
-### Login (Renata, operadora)
-# @name login
+# Senha de desenvolvimento dos 3 usuários de teste (a que você definiu no user secrets).
+# Preencha SÓ no seu computador. NÃO faça commit deste arquivo com a senha preenchida.
+@senha =
+
+# IDs que ainda precisam ser copiados do Supabase (Table Editor):
+#   equipamentos.id  -> @equipamentoId
+#   causas_falha.id  -> @causaId
+#   pecas.id         -> @pecaId   (anote o quantidade_estoque antes, para conferir a baixa)
+@equipamentoId = 01a13847-972e-713e-bede-ddfba54eb2b1
+@causaId = 01a13847-bec1-7081-9581-41b50ae4a2a6
+@pecaId = 1a7b56ad-5814-4272-954d-b5888919971c
+
+
+###############################################################
+# 1) LOGINS  (envie os 3 primeiro; cada um guarda o seu token)
+###############################################################
+
+### Login - Renata (Operador)
+#@name loginOperador
 POST {{host}}/api/auth/login
 Content-Type: application/json
 
-{
-  "email": "carlos.tecnico@sustennutri.com.br",
-  "senha": ""
-}
+{ "email": "renata.operadora@sustennutri.com.br", "senha":  }
 
-### Quem sou eu?
+### Login - Paulo (Gestor)
+# @name loginGestor
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "paulo.gestor@sustennutri.com.br", "senha":  }
+
+### Login - Carlos (Tecnico)
+# @name loginTecnico
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "carlos.tecnico@sustennutri.com.br", "senha":  }
+
+### Descobrir o Id do Carlos (usado para atribuir)
+# @name euTecnico
 GET {{host}}/api/auth/eu
-Authorization: Bearer {{login.response.body.$.token}}
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
 
-### Abrir O.S. (precisa de token)
+
+###############################################################
+# 2) FLUXO FELIZ  (envie na ordem)
+###############################################################
+
+### 2.1 Operador abre a O.S.
+# @name abrir
 POST {{host}}/api/ordensservico
-Authorization: Bearer {{login.response.body.$.token}}
+Authorization: Bearer {{loginOperador.response.body.$.token}}
 Content-Type: application/json
 
 {
-  "equipamentoId": "01a13847-972e-713e-bede-ddfba54eb2b1",
-  "descricaoProblema": "Teste com login",
+  "equipamentoId": "{{equipamentoId}}",
+  "descricaoProblema": "Máquina travando a agulha",
   "prioridade": "Alta",
-  "clientSyncId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
   "criadoOffline": false
 }
 
-### Listar O.S. (sem token, deve dar 401)
-GET {{host}}/api/ordensservico
+### 2.2 Gestor atribui o Carlos
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/atribuir
+Authorization: Bearer {{loginGestor.response.body.$.token}}
+Content-Type: application/json
+
+{ "tecnicoId": "{{euTecnico.response.body.$.id}}" }
+
+### 2.3 Carlos inicia o atendimento
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/iniciar
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+
+### 2.4 Carlos pausa
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/pausar
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+Content-Type: application/json
+
+{ "motivo": "Aguardando peça do almoxarifado" }
+
+### 2.5 Carlos retoma
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/retomar
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+
+### 2.6 Carlos registra uma peça (confira a baixa no estoque, no Supabase)
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/pecas
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+Content-Type: application/json
+
+{ "pecaId": "{{pecaId}}", "quantidade": 2 }
+
+### 2.7 Carlos conclui (a causa da falha é obrigatória)
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/concluir
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+Content-Type: application/json
+
+{ "causaFalhaId": "{{causaId}}", "observacoesTecnicas": "Troca da agulha e regulagem do pé-calcador." }
+
+### 2.8 Ver o detalhe completo (tempo de atendimento, eventos, peças)
+GET {{host}}/api/ordensservico/{{abrir.response.body.$.id}}
+Authorization: Bearer {{loginGestor.response.body.$.token}}
+
+### 2.9 Listar só as do Carlos
+GET {{host}}/api/ordensservico?minhas=true
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+
+
+###############################################################
+# 3) TESTES DE ERRO  (cada um mostra a resposta esperada)
+###############################################################
+
+### 3.1 Renata (Operador) tentando iniciar -> 403 (papel errado)
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/iniciar
+Authorization: Bearer {{loginOperador.response.body.$.token}}
+
+### 3.2 Carlos iniciando de novo a O.S. já concluída -> 409
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/iniciar
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+
+### 3.3 Cancelar uma O.S. já concluída -> 409
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/cancelar
+Authorization: Bearer {{loginGestor.response.body.$.token}}
+Content-Type: application/json
+
+{ "motivo": "teste" }
+
+### 3.4 Concluir sem informar a causa da falha -> 400
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/concluir
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+Content-Type: application/json
+
+{ "observacoesTecnicas": "sem causa" }
+
+### 3.5 Peça acima do estoque -> 409 (abra uma O.S. nova e inicie antes, ou use uma em andamento)
+POST {{host}}/api/ordensservico/{{abrir.response.body.$.id}}/pecas
+Authorization: Bearer {{loginTecnico.response.body.$.token}}
+Content-Type: application/json
+
+{ "pecaId": "{{pecaId}}", "quantidade": 9999 }
+
+### 3.6 O.S. que não existe -> 404
+GET {{host}}/api/ordensservico/00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{loginGestor.response.body.$.token}}

@@ -1,5 +1,6 @@
 using System.Text;
 using ADSync.Api.Auth;
+using ADSync.Api.Middleware;
 using ADSync.Application.Interfaces;
 using ADSync.Application.Services;
 using ADSync.Domain.Enums;
@@ -86,7 +87,15 @@ builder.Services.AddAuthorization();
 
 // ---------- Injeção de dependência: Repository + Service ----------
 builder.Services.AddScoped<IOrdemServicoRepository, OrdemServicoRepository>();
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddScoped<IPecaRepository, PecaRepository>();
+builder.Services.AddScoped<ICausaFalhaRepository, CausaFalhaRepository>();
+builder.Services.AddScoped<IEquipamentoRepository, EquipamentoRepository>();
 builder.Services.AddScoped<IOrdemServicoService, OrdemServicoService>();
+
+// ---------- Tradução de exceções de negócio em respostas HTTP (404 / 403 / 409) ----------
+builder.Services.AddExceptionHandler<DomainExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // ---------- Controllers + OpenAPI ----------
 builder.Services.AddControllers();
@@ -102,6 +111,8 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     await DbSeeder.SeedAsync(scope.ServiceProvider, app.Configuration["Seed:SenhaDev"]);
 }
+
+app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 
