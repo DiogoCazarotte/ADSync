@@ -7,6 +7,10 @@ public class OrdemServico
 {
     public Guid Id { get; set; }
 
+    // Preenchido quando a O.S. foi gerada automaticamente por um plano preventivo (RF13).
+    public Guid? PlanoPreventivoId { get; set; }
+    public PlanoPreventivo? PlanoPreventivo { get; set; }
+
     // Gerado no PWA/IndexedDB enquanto offline; usado para evitar O.S. duplicada na sincronização.
     public Guid? ClientSyncId { get; set; }
 
@@ -27,6 +31,9 @@ public class OrdemServico
     public string DescricaoProblema { get; set; } = string.Empty;
     public StatusOS Status { get; set; } = StatusOS.Aberta;
     public PrioridadeOS Prioridade { get; set; } = PrioridadeOS.Media;
+
+    // Corretiva = reparo após falha; Preventiva = manutenção planejada (base do indicador de % preventiva).
+    public TipoManutencao TipoManutencao { get; set; } = TipoManutencao.Corretiva;
 
     public DateTimeOffset DataAbertura { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? DataConclusao { get; set; }

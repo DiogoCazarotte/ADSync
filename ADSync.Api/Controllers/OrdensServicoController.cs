@@ -34,6 +34,11 @@ public class OrdensServicoController : ControllerBase
         // senão um usuário poderia abrir O.S. em nome de outro.
         dto.OperadorId = UsuarioLogadoId;
 
+        // Manutenção preventiva é planejada pelo Gestor; o Operador só reporta falhas (corretiva).
+        if (!User.IsInRole("Gestor") &&
+            string.Equals(dto.TipoManutencao, nameof(TipoManutencao.Preventiva), StringComparison.OrdinalIgnoreCase))
+            throw new AcessoNegadoException("Apenas o Gestor pode abrir manutenção preventiva.");
+
         var criada = await _service.AbrirAsync(dto);
         return CreatedAtAction(nameof(ObterPorId), new { id = criada.Id }, criada);
     }

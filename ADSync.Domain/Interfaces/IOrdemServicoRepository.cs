@@ -19,6 +19,9 @@ public interface IOrdemServicoRepository
         Guid? tecnicoId = null,
         Guid? operadorId = null);
 
+    // Próximo número de O.S. (sequence do banco, sem risco de repetição). Ex.: OS-2026-00042
+    Task<string> ObterProximoNumeroAsync();
+
     Task AdicionarAsync(OrdemServico ordemServico);
 
     // Grava TUDO que está rastreado no contexto de uma vez só, numa única transação.

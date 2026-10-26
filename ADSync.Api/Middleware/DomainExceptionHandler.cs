@@ -1,6 +1,7 @@
 ﻿using ADSync.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ADSync.Api.Middleware;
 
@@ -16,6 +17,7 @@ public class DomainExceptionHandler : IExceptionHandler
             NaoEncontradoException => (StatusCodes.Status404NotFound, "Não encontrado"),
             AcessoNegadoException => (StatusCodes.Status403Forbidden, "Acesso negado"),
             RegraNegocioException => (StatusCodes.Status409Conflict, "Regra de negócio violada"),
+            DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Conflito de concorrência"),
             _ => (0, string.Empty)
         };
 
@@ -28,7 +30,9 @@ public class DomainExceptionHandler : IExceptionHandler
         {
             Status = status,
             Title = titulo,
-            Detail = exception.Message
+            Detail = exception is DbUpdateConcurrencyException
+                ? "Outro usuário alterou este registro ao mesmo tempo. Atualize e tente novamente."
+                : exception.Message
         }, cancellationToken);
 
         return true;

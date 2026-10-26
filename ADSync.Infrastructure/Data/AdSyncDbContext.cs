@@ -20,18 +20,20 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
     public DbSet<OrdemServico> OrdensServico => Set<OrdemServico>();
     public DbSet<OsRegistroTempo> OsRegistrosTempo => Set<OsRegistroTempo>();
     public DbSet<OsPecaUtilizada> OsPecasUtilizadas => Set<OsPecaUtilizada>();
+    public DbSet<PlanoPreventivo> PlanosPreventivos => Set<PlanoPreventivo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder); // cria as tabelas do Identity (AspNetUsers, AspNetRoles, etc.)
 
-        
+
         modelBuilder.HasPostgresEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: new NpgsqlNullNameTranslator());
         modelBuilder.HasPostgresEnum<StatusOS>("status_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
         modelBuilder.HasPostgresEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
         modelBuilder.HasPostgresEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: new NpgsqlNullNameTranslator());
+        modelBuilder.HasPostgresEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: new NpgsqlNullNameTranslator());
 
-      
+
         modelBuilder.Entity<Usuario>(e =>
         {
             e.ToTable("usuarios");
@@ -46,14 +48,14 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
             e.Property(x => x.Ativo).HasColumnName("ativo");
             e.Property(x => x.DataCriacao).HasColumnName("data_criacao");
 
-    
+
             e.HasOne<ApplicationUser>()
                 .WithOne()
                 .HasForeignKey<Usuario>(x => x.Id)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-     
+
         modelBuilder.Entity<Equipamento>(e =>
         {
             e.ToTable("equipamentos");
@@ -66,7 +68,7 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
             e.Property(x => x.Ativo).HasColumnName("ativo");
         });
 
-      
+
         modelBuilder.Entity<CausaFalha>(e =>
         {
             e.ToTable("causas_falha");
@@ -77,7 +79,7 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
             e.Property(x => x.Ativo).HasColumnName("ativo");
         });
 
-        
+
         modelBuilder.Entity<Peca>(e =>
         {
             e.ToTable("pecas");
@@ -87,9 +89,11 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
             e.HasIndex(x => x.Codigo).IsUnique();
             e.Property(x => x.Nome).HasColumnName("nome").HasMaxLength(150).IsRequired();
             e.Property(x => x.QuantidadeEstoque).HasColumnName("quantidade_estoque");
+            e.Property(x => x.Version).IsRowVersion(); // mapeia para a coluna de sistema xmin
+            e.Property(x => x.Critica).HasColumnName("critica");
         });
 
-       
+
         modelBuilder.Entity<OrdemServico>(e =>
         {
             e.ToTable("ordens_servico");
@@ -119,17 +123,21 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
             e.Property(x => x.DescricaoProblema).HasColumnName("descricao_problema").IsRequired();
             e.Property(x => x.Status).HasColumnName("status").HasColumnType("status_os_enum");
             e.Property(x => x.Prioridade).HasColumnName("prioridade").HasColumnType("prioridade_os_enum");
+            e.Property(x => x.TipoManutencao).HasColumnName("tipo_manutencao").HasColumnType("tipo_manutencao_enum");
+            e.Property(x => x.PlanoPreventivoId).HasColumnName("plano_preventivo_id");
+            e.HasOne(x => x.PlanoPreventivo).WithMany(pp => pp.OrdensGeradas)
+                .HasForeignKey(x => x.PlanoPreventivoId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.DataAbertura).HasColumnName("data_abertura");
             e.Property(x => x.DataConclusao).HasColumnName("data_conclusao");
             e.Property(x => x.ObservacoesTecnicas).HasColumnName("observacoes_tecnicas");
             e.Property(x => x.CriadoOffline).HasColumnName("criado_offline");
 
-      
+
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.DataAbertura);
         });
 
-        
+
         modelBuilder.Entity<OsRegistroTempo>(e =>
         {
             e.ToTable("os_registros_tempo");
@@ -143,7 +151,7 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
             e.Property(x => x.MotivoPausa).HasColumnName("motivo_pausa").HasMaxLength(255);
         });
 
-       
+
         modelBuilder.Entity<OsPecaUtilizada>(e =>
         {
             e.ToTable("os_pecas_utilizadas");
@@ -156,6 +164,28 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
             e.HasOne(x => x.Peca).WithMany(p => p.PecasUtilizadas)
                 .HasForeignKey(x => x.PecaId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.Quantidade).HasColumnName("quantidade");
+        });
+
+        modelBuilder.Entity<PlanoPreventivo>(e =>
+        {
+            e.ToTable("planos_preventivos");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+
+            e.Property(x => x.EquipamentoId).HasColumnName("equipamento_id");
+            e.HasOne(x => x.Equipamento).WithMany()
+                .HasForeignKey(x => x.EquipamentoId).OnDelete(DeleteBehavior.Restrict);
+
+            e.Property(x => x.TecnicoResponsavelId).HasColumnName("tecnico_responsavel_id");
+            e.HasOne(x => x.TecnicoResponsavel).WithMany()
+                .HasForeignKey(x => x.TecnicoResponsavelId).OnDelete(DeleteBehavior.Restrict);
+
+            e.Property(x => x.Descricao).HasColumnName("descricao").HasMaxLength(300).IsRequired();
+            e.Property(x => x.PeriodicidadeDias).HasColumnName("periodicidade_dias");
+            e.Property(x => x.ProximaExecucao).HasColumnName("proxima_execucao").HasColumnType("date");
+            e.Property(x => x.Ativo).HasColumnName("ativo");
+
+            e.HasIndex(x => x.ProximaExecucao);
         });
     }
 }

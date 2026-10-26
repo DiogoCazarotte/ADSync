@@ -54,16 +54,20 @@ public class OrdemServicoService : IOrdemServicoService
         if (!Enum.TryParse<PrioridadeOS>(dto.Prioridade, ignoreCase: true, out var prioridade))
             prioridade = PrioridadeOS.Media;
 
+        if (!Enum.TryParse<TipoManutencao>(dto.TipoManutencao, ignoreCase: true, out var tipoManutencao))
+            tipoManutencao = TipoManutencao.Corretiva;
+
         var ordemServico = new OrdemServico
         {
             Id = Guid.NewGuid(),
             ClientSyncId = dto.ClientSyncId,
-            NumeroOS = GerarNumeroOS(),
+            NumeroOS = await _repository.ObterProximoNumeroAsync(),
             EquipamentoId = dto.EquipamentoId,
             OperadorId = dto.OperadorId,
             DescricaoProblema = dto.DescricaoProblema.Trim(),
             Status = StatusOS.Aberta,
             Prioridade = prioridade,
+            TipoManutencao = tipoManutencao,
             DataAbertura = ValidarQuando(dto.DataAbertura),
             CriadoOffline = dto.CriadoOffline
         };
@@ -192,12 +196,6 @@ public class OrdemServicoService : IOrdemServicoService
         return ocorridoEm.Value.ToUniversalTime();
     }
 
-    private static string GerarNumeroOS()
-    {
-        // Simples e suficiente para o MVP: OS-20261014-4821
-        return $"OS-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
-    }
-
     private static OrdemServicoDto MapearResumo(OrdemServico os)
     {
         return new OrdemServicoDto
@@ -206,6 +204,8 @@ public class OrdemServicoService : IOrdemServicoService
             NumeroOS = os.NumeroOS,
             Status = os.Status.ToString(),
             Prioridade = os.Prioridade.ToString(),
+            TipoManutencao = os.TipoManutencao.ToString(),
+            GeradaAutomaticamente = os.PlanoPreventivoId != null,
             EquipamentoNome = os.Equipamento?.Nome ?? string.Empty,
             OperadorNome = os.Operador?.Nome ?? string.Empty,
             TecnicoNome = os.Tecnico?.Nome,
@@ -223,6 +223,8 @@ public class OrdemServicoService : IOrdemServicoService
             NumeroOS = os.NumeroOS,
             Status = os.Status.ToString(),
             Prioridade = os.Prioridade.ToString(),
+            TipoManutencao = os.TipoManutencao.ToString(),
+            GeradaAutomaticamente = os.PlanoPreventivoId != null,
             EquipamentoId = os.EquipamentoId,
             EquipamentoNome = os.Equipamento?.Nome ?? string.Empty,
             Setor = os.Equipamento?.Setor ?? string.Empty,

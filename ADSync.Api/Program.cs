@@ -7,6 +7,7 @@ using ADSync.Domain.Enums;
 using ADSync.Domain.Interfaces;
 using ADSync.Infrastructure.Data;
 using ADSync.Infrastructure.Identity;
+using ADSync.Infrastructure.Jobs;
 using ADSync.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -25,6 +26,7 @@ dataSourceBuilder.MapEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: new 
 dataSourceBuilder.MapEnum<StatusOS>("status_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
 dataSourceBuilder.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
 dataSourceBuilder.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: new NpgsqlNullNameTranslator());
+dataSourceBuilder.MapEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: new NpgsqlNullNameTranslator());
 var dataSource = dataSourceBuilder.Build();
 
 builder.Services.AddDbContext<AdSyncDbContext>(options => options.UseNpgsql(dataSource, o =>
@@ -33,6 +35,7 @@ builder.Services.AddDbContext<AdSyncDbContext>(options => options.UseNpgsql(data
     o.MapEnum<StatusOS>("status_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
     o.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
     o.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: new NpgsqlNullNameTranslator());
+    o.MapEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: new NpgsqlNullNameTranslator());
 }));
 
 // ---------- Identity (usuários, senhas e papéis) ----------
@@ -92,6 +95,26 @@ builder.Services.AddScoped<IPecaRepository, PecaRepository>();
 builder.Services.AddScoped<ICausaFalhaRepository, CausaFalhaRepository>();
 builder.Services.AddScoped<IEquipamentoRepository, EquipamentoRepository>();
 builder.Services.AddScoped<IOrdemServicoService, OrdemServicoService>();
+builder.Services.AddScoped<IEquipamentoService, EquipamentoService>();
+builder.Services.AddScoped<ICausaFalhaService, CausaFalhaService>();
+builder.Services.AddScoped<IPecaService, PecaService>();
+builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+
+// ---------- Planos preventivos (RF13) ----------
+builder.Services.AddScoped<IPlanoPreventivoRepository, PlanoPreventivoRepository>();
+builder.Services.AddScoped<IPlanoPreventivoService, PlanoPreventivoService>();
+
+// Job que abre as O.S. preventivas sozinho quando a data do plano chega.
+builder.Services.AddHostedService<GeracaoPreventivaBackgroundService>();
+
+// ---------- CORS (o Blazor WASM roda em outra origem que a API) ----------
+// Origens configuráveis em "Cors:Origens"; o padrão são as portas do launchSettings do Client.
+var origensPermitidas = builder.Configuration.GetSection("Cors:Origens").Get<string[]>()
+    ?? new[] { "http://localhost:5125", "https://localhost:7297" };
+builder.Services.AddCors(o => o.AddPolicy("Client", p => p
+    .WithOrigins(origensPermitidas)
+    .AllowAnyHeader()
+    .AllowAnyMethod()));
 
 // ---------- Tradução de exceções de negócio em respostas HTTP (404 / 403 / 409) ----------
 builder.Services.AddExceptionHandler<DomainExceptionHandler>();
@@ -110,11 +133,18 @@ if (app.Environment.IsDevelopment())
     // Popula roles, usuários de exemplo, equipamentos e causas de falha (idempotente)
     using var scope = app.Services.CreateScope();
     await DbSeeder.SeedAsync(scope.ServiceProvider, app.Configuration["Seed:SenhaDev"]);
+
+    // Console de testes (wwwroot/teste.html), só em desenvolvimento.
+    // Mesma origem da API: não precisa de CORS. Abra https://localhost:<porta>/teste.html
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
 }
 
 app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
+
+app.UseCors("Client");
 
 app.UseAuthentication();
 app.UseAuthorization();

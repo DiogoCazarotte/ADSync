@@ -23,6 +23,9 @@ public class CriarOrdemServicoDto
     // "Baixa", "Media", "Alta" ou "Critica" — default é "Media" se vier vazio/invalido
     public string Prioridade { get; set; } = "Media";
 
+    // "Corretiva" (padrão) ou "Preventiva". Só o Gestor pode abrir preventiva.
+    public string TipoManutencao { get; set; } = "Corretiva";
+
     public bool CriadoOffline { get; set; }
 
     // Quando a O.S. foi realmente aberta (usado se ela nasceu offline). Se omitido, vale "agora".

@@ -7,6 +7,8 @@ public class OrdemServicoDto
     public string NumeroOS { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string Prioridade { get; set; } = string.Empty;
+    public string TipoManutencao { get; set; } = string.Empty;
+    public bool GeradaAutomaticamente { get; set; }
     public string EquipamentoNome { get; set; } = string.Empty;
     public string OperadorNome { get; set; } = string.Empty;
     public string? TecnicoNome { get; set; }

@@ -77,6 +77,16 @@ public class OrdemServicoRepository : IOrdemServicoRepository
         return await query.OrderByDescending(os => os.DataAbertura).ToListAsync();
     }
 
+    public async Task<string> ObterProximoNumeroAsync()
+    {
+        // A sequence os_numero_seq é criada no Supabase (ver scripts/passo2.sql).
+        var proximo = await _context.Database
+            .SqlQueryRaw<long>("SELECT nextval('os_numero_seq') AS \"Value\"")
+            .SingleAsync();
+
+        return $"OS-{DateTime.UtcNow.Year}-{proximo:D5}";
+    }
+
     public async Task AdicionarAsync(OrdemServico ordemServico)
     {
         await _context.OrdensServico.AddAsync(ordemServico);

@@ -28,6 +28,12 @@ public enum PrioridadeOS
     Critica
 }
 
+public enum TipoManutencao
+{
+    Corretiva,
+    Preventiva
+}
+
 public enum TipoRegistroTempo
 {
     Inicio,
