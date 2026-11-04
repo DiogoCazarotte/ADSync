@@ -107,6 +107,10 @@ builder.Services.AddScoped<IPlanoPreventivoService, PlanoPreventivoService>();
 // Job que abre as O.S. preventivas sozinho quando a data do plano chega.
 builder.Services.AddHostedService<GeracaoPreventivaBackgroundService>();
 
+// ---------- Indicadores (RF07/RF10): MTTR, MTBF e % preventiva ----------
+builder.Services.AddScoped<IIndicadoresRepository, IndicadoresRepository>();
+builder.Services.AddScoped<IIndicadoresService, IndicadoresService>();
+
 // ---------- CORS (o Blazor WASM roda em outra origem que a API) ----------
 // Origens configuráveis em "Cors:Origens"; o padrão são as portas do launchSettings do Client.
 var origensPermitidas = builder.Configuration.GetSection("Cors:Origens").Get<string[]>()

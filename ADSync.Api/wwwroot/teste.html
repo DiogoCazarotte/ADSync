@@ -1,211 +1,395 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>ADSync — Console de testes</title>
-<style>
-  :root {
-    --bg: #0f1115; --panel: #171a21; --border: #2a2e38; --text: #e6e8ec;
-    --muted: #9aa2b1; --accent: #3b82f6; --ok: #22c55e; --err: #ef4444; --warn: #f59e0b;
-  }
-  * { box-sizing: border-box; }
-  body {
-    background: var(--bg); color: var(--text); font-family: Segoe UI, Arial, sans-serif;
-    margin: 0; padding: 20px; font-size: 14px;
-  }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  h2 { font-size: 16px; margin: 0 0 12px; color: var(--accent); }
-  .sub { color: var(--muted); margin-bottom: 20px; }
-  .bar {
-    position: sticky; top: 0; z-index: 10; background: var(--bg);
-    padding: 10px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px;
-  }
-  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .panel {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    padding: 16px; margin-bottom: 16px;
-  }
-  label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 3px; }
-  input, select, textarea {
-    background: #0d0f14; color: var(--text); border: 1px solid var(--border);
-    border-radius: 6px; padding: 7px 9px; font-size: 13px; min-width: 160px;
-  }
-  textarea { width: 100%; min-height: 50px; font-family: inherit; }
-  button {
-    background: var(--accent); color: white; border: none; border-radius: 6px;
-    padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600;
-  }
-  button:hover { filter: brightness(1.1); }
-  button.secondary { background: #2a2e38; }
-  button.danger { background: var(--err); }
-  button.small { padding: 4px 9px; font-size: 12px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12.5px; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; }
-  .badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .badge.ok { background: rgba(34,197,94,.15); color: var(--ok); }
-  .badge.err { background: rgba(239,68,68,.15); color: var(--err); }
-  .badge.muted { background: rgba(154,162,177,.15); color: var(--muted); }
-  .field { display: flex; flex-direction: column; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
-  .result {
-    margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-family: Consolas, monospace;
-    font-size: 12px; white-space: pre-wrap; max-height: 220px; overflow: auto;
-  }
-  .result.ok { background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.3); }
-  .result.err { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.3); }
-  details { margin-top: 8px; }
-  summary { cursor: pointer; color: var(--accent); font-size: 12.5px; }
-  .ac-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
-  .idcell { font-family: Consolas, monospace; font-size: 11px; color: var(--muted); }
-  code { color: #f0b429; }
-</style>
+    <meta charset="UTF-8">
+    <title>ADSync — Console de testes</title>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #171a21;
+            --border: #2a2e38;
+            --text: #e6e8ec;
+            --muted: #9aa2b1;
+            --accent: #3b82f6;
+            --ok: #22c55e;
+            --err: #ef4444;
+            --warn: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: Segoe UI, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0 0 4px;
+        }
+
+        h2 {
+            font-size: 16px;
+            margin: 0 0 12px;
+            color: var(--accent);
+        }
+
+        .sub {
+            color: var(--muted);
+            margin-bottom: 20px;
+        }
+
+        .bar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--bg);
+            padding: 10px 0 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        label {
+            color: var(--muted);
+            font-size: 12px;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        input, select, textarea {
+            background: #0d0f14;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 7px 9px;
+            font-size: 13px;
+            min-width: 160px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 50px;
+            font-family: inherit;
+        }
+
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+            button:hover {
+                filter: brightness(1.1);
+            }
+
+            button.secondary {
+                background: #2a2e38;
+            }
+
+            button.danger {
+                background: var(--err);
+            }
+
+            button.small {
+                padding: 4px 9px;
+                font-size: 12px;
+            }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12.5px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+            .badge.ok {
+                background: rgba(34,197,94,.15);
+                color: var(--ok);
+            }
+
+            .badge.err {
+                background: rgba(239,68,68,.15);
+                color: var(--err);
+            }
+
+            .badge.muted {
+                background: rgba(154,162,177,.15);
+                color: var(--muted);
+            }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 10px;
+            align-items: end;
+        }
+
+        .result {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-family: Consolas, monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 220px;
+            overflow: auto;
+        }
+
+            .result.ok {
+                background: rgba(34,197,94,.08);
+                border: 1px solid rgba(34,197,94,.3);
+            }
+
+            .result.err {
+                background: rgba(239,68,68,.08);
+                border: 1px solid rgba(239,68,68,.3);
+            }
+
+        details {
+            margin-top: 8px;
+        }
+
+        summary {
+            cursor: pointer;
+            color: var(--accent);
+            font-size: 12.5px;
+        }
+
+        .ac-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+            align-items: center;
+        }
+
+        .idcell {
+            font-family: Consolas, monospace;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        code {
+            color: #f0b429;
+        }
+    </style>
 </head>
 <body>
 
-<div class="bar">
-  <h1>ADSync — Console de testes</h1>
-  <div class="sub">Roda na mesma origem da API (<code id="origem"></code>), sem CORS. Só funciona com a API no ar (F5).</div>
+    <div class="bar">
+        <h1>ADSync — Console de testes</h1>
+        <div class="sub">Roda na mesma origem da API (<code id="origem"></code>), sem CORS. Só funciona com a API no ar (F5).</div>
 
-  <div class="row">
-    <div class="field">
-      <label>Senha de desenvolvimento (a mesma dos 3 usuários do seed)</label>
-      <input id="senha" type="password" placeholder="senha" style="min-width:220px">
+        <div class="row">
+            <div class="field">
+                <label>Senha de desenvolvimento (a mesma dos 3 usuários do seed)</label>
+                <input id="senha" type="password" placeholder="senha" style="min-width:220px">
+            </div>
+            <button onclick="login('Gestor')">Entrar como Gestor</button>
+            <button onclick="login('Tecnico')">Entrar como Técnico</button>
+            <button onclick="login('Operador')">Entrar como Operador</button>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+            <span id="statusGestor" class="badge muted">Gestor: —</span>
+            <span id="statusTecnico" class="badge muted">Técnico: —</span>
+            <span id="statusOperador" class="badge muted">Operador: —</span>
+
+            <span style="margin-left:20px" class="field">
+                <label>Papel ativo (usado em todas as chamadas abaixo)</label>
+                <select id="papelAtivo">
+                    <option value="Gestor">Gestor</option>
+                    <option value="Tecnico">Técnico</option>
+                    <option value="Operador">Operador</option>
+                </select>
+            </span>
+
+            <button class="secondary" onclick="carregarListas()">Carregar listas de apoio</button>
+        </div>
     </div>
-    <button onclick="login('Gestor')">Entrar como Gestor</button>
-    <button onclick="login('Tecnico')">Entrar como Técnico</button>
-    <button onclick="login('Operador')">Entrar como Operador</button>
-  </div>
 
-  <div class="row" style="margin-top:10px">
-    <span id="statusGestor" class="badge muted">Gestor: —</span>
-    <span id="statusTecnico" class="badge muted">Técnico: —</span>
-    <span id="statusOperador" class="badge muted">Operador: —</span>
-
-    <span style="margin-left:20px" class="field">
-      <label>Papel ativo (usado em todas as chamadas abaixo)</label>
-      <select id="papelAtivo">
-        <option value="Gestor">Gestor</option>
-        <option value="Tecnico">Técnico</option>
-        <option value="Operador">Operador</option>
-      </select>
-    </span>
-
-    <button class="secondary" onclick="carregarListas()">Carregar listas de apoio</button>
-  </div>
-</div>
-
-<!-- ================= EQUIPAMENTOS ================= -->
-<div class="panel">
-  <h2>Equipamentos</h2>
-  <div class="grid">
-    <div class="field"><label>Nome</label><input id="eqNome" placeholder="Esteira 01"></div>
-    <div class="field"><label>Código de patrimônio</label><input id="eqCodigo" placeholder="EST-001"></div>
-    <div class="field"><label>Setor</label><input id="eqSetor" placeholder="Ensaque"></div>
-    <button onclick="criarEquipamento()">Criar</button>
-    <button class="secondary" onclick="listarEquipamentos()">Listar</button>
-  </div>
-  <div id="resEquipamentos"></div>
-  <table id="tblEquipamentos"><thead><tr><th>Nome</th><th>Código</th><th>Setor</th><th>Ativo</th><th>Id</th><th></th></tr></thead><tbody></tbody></table>
-</div>
-
-<!-- ================= CAUSAS DE FALHA ================= -->
-<div class="panel">
-  <h2>Causas de falha</h2>
-  <div class="grid">
-    <div class="field"><label>Descrição</label><input id="causaDescricao" placeholder="Rolamento desgastado"></div>
-    <button onclick="criarCausa()">Criar</button>
-    <button class="secondary" onclick="listarCausas()">Listar</button>
-  </div>
-  <div id="resCausas"></div>
-  <table id="tblCausas"><thead><tr><th>Descrição</th><th>Ativo</th><th>Id</th><th></th></tr></thead><tbody></tbody></table>
-</div>
-
-<!-- ================= PEÇAS ================= -->
-<div class="panel">
-  <h2>Peças</h2>
-  <div class="grid">
-    <div class="field"><label>Código</label><input id="pecaCodigo" placeholder="ROL-6204"></div>
-    <div class="field"><label>Nome</label><input id="pecaNome" placeholder="Rolamento 6204"></div>
-    <div class="field"><label>Qtd. inicial</label><input id="pecaQtd" type="number" value="0"></div>
-    <div class="field"><label><input id="pecaCritica" type="checkbox" style="min-width:auto"> Crítica</label></div>
-    <button onclick="criarPeca()">Criar</button>
-    <button class="secondary" onclick="listarPecas()">Listar</button>
-  </div>
-  <div class="grid" style="margin-top:10px">
-    <div class="field"><label>Peça</label><select id="pecaEntradaId" class="sel-peca"></select></div>
-    <div class="field"><label>Quantidade a somar</label><input id="pecaEntradaQtd" type="number" value="10"></div>
-    <button onclick="entradaEstoque()">Registrar entrada</button>
-  </div>
-  <div id="resPecas"></div>
-  <table id="tblPecas"><thead><tr><th>Código</th><th>Nome</th><th>Estoque</th><th>Crítica</th><th>Id</th></tr></thead><tbody></tbody></table>
-</div>
-
-<!-- ================= TÉCNICOS ================= -->
-<div class="panel">
-  <h2>Técnicos (consulta só o Gestor)</h2>
-  <button class="secondary" onclick="listarTecnicos()">Listar técnicos</button>
-  <div id="resTecnicos"></div>
-  <table id="tblTecnicos"><thead><tr><th>Nome</th><th>Email</th><th>Ativo</th><th>Id</th></tr></thead><tbody></tbody></table>
-</div>
-
-<!-- ================= PLANOS PREVENTIVOS ================= -->
-<div class="panel">
-  <h2>Planos preventivos (RF13)</h2>
-  <div class="grid">
-    <div class="field"><label>Equipamento</label><select id="ppEquipamento" class="sel-equipamento"></select></div>
-    <div class="field"><label>Técnico responsável</label><select id="ppTecnico" class="sel-tecnico"></select></div>
-    <div class="field"><label>Tarefa</label><input id="ppDescricao" placeholder="Lubrificação geral"></div>
-    <div class="field"><label>Periodicidade (dias)</label><input id="ppPeriodicidade" type="number" value="30"></div>
-    <div class="field"><label>Próxima execução</label><input id="ppProxima" type="date"></div>
-    <button onclick="criarPlano()">Criar plano</button>
-    <button class="secondary" onclick="listarPlanos()">Listar</button>
-  </div>
-  <div id="resPlanos"></div>
-  <table id="tblPlanos"><thead><tr><th>Equipamento</th><th>Técnico</th><th>Tarefa</th><th>Period.</th><th>Próxima exec.</th><th>Ativo</th><th>Id</th><th></th></tr></thead><tbody></tbody></table>
-</div>
-
-<!-- ================= ORDENS DE SERVIÇO ================= -->
-<div class="panel">
-  <h2>Ordens de serviço</h2>
-
-  <h3 style="font-size:13px;color:var(--muted)">Abrir nova O.S.</h3>
-  <div class="grid">
-    <div class="field"><label>Equipamento</label><select id="osEquipamento" class="sel-equipamento"></select></div>
-    <div class="field"><label>Prioridade</label>
-      <select id="osPrioridade"><option>Baixa</option><option selected>Media</option><option>Alta</option><option>Critica</option></select>
+    <!-- ================= EQUIPAMENTOS ================= -->
+    <div class="panel">
+        <h2>Equipamentos</h2>
+        <div class="grid">
+            <div class="field"><label>Nome</label><input id="eqNome" placeholder="Esteira 01"></div>
+            <div class="field"><label>Código de patrimônio</label><input id="eqCodigo" placeholder="EST-001"></div>
+            <div class="field"><label>Setor</label><input id="eqSetor" placeholder="Ensaque"></div>
+            <button onclick="criarEquipamento()">Criar</button>
+            <button class="secondary" onclick="listarEquipamentos()">Listar</button>
+        </div>
+        <div id="resEquipamentos"></div>
+        <table id="tblEquipamentos"><thead><tr><th>Nome</th><th>Código</th><th>Setor</th><th>Ativo</th><th>Id</th><th></th></tr></thead><tbody></tbody></table>
     </div>
-    <div class="field"><label>Tipo de manutenção</label>
-      <select id="osTipo"><option selected>Corretiva</option><option>Preventiva</option></select>
-    </div>
-  </div>
-  <div class="field" style="margin-top:8px"><label>Descrição do problema</label><textarea id="osDescricao">Teste pelo console</textarea></div>
-  <button onclick="abrirOS()">Abrir O.S. (como o papel ativo)</button>
 
-  <h3 style="font-size:13px;color:var(--muted);margin-top:16px">Listar</h3>
-  <div class="row">
-    <div class="field"><label>Status</label>
-      <select id="osFiltroStatus"><option value="">(todos)</option><option>Aberta</option><option>EmAndamento</option><option>Pausada</option><option>Concluida</option><option>Cancelada</option></select>
+    <!-- ================= CAUSAS DE FALHA ================= -->
+    <div class="panel">
+        <h2>Causas de falha</h2>
+        <div class="grid">
+            <div class="field"><label>Descrição</label><input id="causaDescricao" placeholder="Rolamento desgastado"></div>
+            <button onclick="criarCausa()">Criar</button>
+            <button class="secondary" onclick="listarCausas()">Listar</button>
+        </div>
+        <div id="resCausas"></div>
+        <table id="tblCausas"><thead><tr><th>Descrição</th><th>Ativo</th><th>Id</th><th></th></tr></thead><tbody></tbody></table>
     </div>
-    <div class="field"><label>Prioridade</label>
-      <select id="osFiltroPrioridade"><option value="">(todas)</option><option>Baixa</option><option>Media</option><option>Alta</option><option>Critica</option></select>
+
+    <!-- ================= PEÇAS ================= -->
+    <div class="panel">
+        <h2>Peças</h2>
+        <div class="grid">
+            <div class="field"><label>Código</label><input id="pecaCodigo" placeholder="ROL-6204"></div>
+            <div class="field"><label>Nome</label><input id="pecaNome" placeholder="Rolamento 6204"></div>
+            <div class="field"><label>Qtd. inicial</label><input id="pecaQtd" type="number" value="0"></div>
+            <div class="field"><label><input id="pecaCritica" type="checkbox" style="min-width:auto"> Crítica</label></div>
+            <button onclick="criarPeca()">Criar</button>
+            <button class="secondary" onclick="listarPecas()">Listar</button>
+        </div>
+        <div class="grid" style="margin-top:10px">
+            <div class="field"><label>Peça</label><select id="pecaEntradaId" class="sel-peca"></select></div>
+            <div class="field"><label>Quantidade a somar</label><input id="pecaEntradaQtd" type="number" value="10"></div>
+            <button onclick="entradaEstoque()">Registrar entrada</button>
+        </div>
+        <div id="resPecas"></div>
+        <table id="tblPecas"><thead><tr><th>Código</th><th>Nome</th><th>Estoque</th><th>Crítica</th><th>Id</th></tr></thead><tbody></tbody></table>
     </div>
-    <div class="field"><label><input id="osFiltroMinhas" type="checkbox" style="min-width:auto"> Só "minhas" (do papel ativo)</label></div>
-    <button class="secondary" onclick="listarOS()">Listar O.S.</button>
-  </div>
 
-  <div id="resOS"></div>
-  <div id="listaOS"></div>
-</div>
+    <!-- ================= TÉCNICOS ================= -->
+    <div class="panel">
+        <h2>Técnicos (consulta só o Gestor)</h2>
+        <button class="secondary" onclick="listarTecnicos()">Listar técnicos</button>
+        <div id="resTecnicos"></div>
+        <table id="tblTecnicos"><thead><tr><th>Nome</th><th>Email</th><th>Ativo</th><th>Id</th></tr></thead><tbody></tbody></table>
+    </div>
 
-<script>
+    <!-- ================= PLANOS PREVENTIVOS ================= -->
+    <div class="panel">
+        <h2>Planos preventivos (RF13)</h2>
+        <div class="grid">
+            <div class="field"><label>Equipamento</label><select id="ppEquipamento" class="sel-equipamento"></select></div>
+            <div class="field"><label>Técnico responsável</label><select id="ppTecnico" class="sel-tecnico"></select></div>
+            <div class="field"><label>Tarefa</label><input id="ppDescricao" placeholder="Lubrificação geral"></div>
+            <div class="field"><label>Periodicidade (dias)</label><input id="ppPeriodicidade" type="number" value="30"></div>
+            <div class="field"><label>Próxima execução</label><input id="ppProxima" type="date"></div>
+            <button onclick="criarPlano()">Criar plano</button>
+            <button class="secondary" onclick="listarPlanos()">Listar</button>
+        </div>
+        <div id="resPlanos"></div>
+        <table id="tblPlanos"><thead><tr><th>Equipamento</th><th>Técnico</th><th>Tarefa</th><th>Period.</th><th>Próxima exec.</th><th>Ativo</th><th>Id</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <!-- ================= INDICADORES ================= -->
+    <div class="panel">
+        <h2>Indicadores (RF07/RF10 — só Gestor)</h2>
+        <div class="grid">
+            <div class="field"><label>Data início</label><input id="indInicio" type="date"></div>
+            <div class="field"><label>Data fim</label><input id="indFim" type="date"></div>
+            <div class="field"><label>Setor (opcional)</label><input id="indSetor" placeholder="Costura"></div>
+            <button onclick="consultarIndicadores()">Consultar</button>
+        </div>
+        <div id="resIndicadores"></div>
+        <div id="indGeral" style="margin-top:10px"></div>
+        <table id="tblIndicadoresSetor">
+            <thead><tr><th>Setor</th><th>Concluídas</th><th>Preventivas</th><th>Corretivas</th><th>% Preventiva</th><th>MTTR (min)</th><th>MTBF (dias)</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- ================= ORDENS DE SERVIÇO ================= -->
+    <div class="panel">
+        <h2>Ordens de serviço</h2>
+
+        <h3 style="font-size:13px;color:var(--muted)">Abrir nova O.S.</h3>
+        <div class="grid">
+            <div class="field"><label>Equipamento</label><select id="osEquipamento" class="sel-equipamento"></select></div>
+            <div class="field">
+                <label>Prioridade</label>
+                <select id="osPrioridade"><option>Baixa</option><option selected>Media</option><option>Alta</option><option>Critica</option></select>
+            </div>
+            <div class="field">
+                <label>Tipo de manutenção</label>
+                <select id="osTipo"><option selected>Corretiva</option><option>Preventiva</option></select>
+            </div>
+        </div>
+        <div class="field" style="margin-top:8px"><label>Descrição do problema</label><textarea id="osDescricao">Teste pelo console</textarea></div>
+        <button onclick="abrirOS()">Abrir O.S. (como o papel ativo)</button>
+
+        <h3 style="font-size:13px;color:var(--muted);margin-top:16px">Listar</h3>
+        <div class="row">
+            <div class="field">
+                <label>Status</label>
+                <select id="osFiltroStatus"><option value="">(todos)</option><option>Aberta</option><option>EmAndamento</option><option>Pausada</option><option>Concluida</option><option>Cancelada</option></select>
+            </div>
+            <div class="field">
+                <label>Prioridade</label>
+                <select id="osFiltroPrioridade"><option value="">(todas)</option><option>Baixa</option><option>Media</option><option>Alta</option><option>Critica</option></select>
+            </div>
+            <div class="field"><label><input id="osFiltroMinhas" type="checkbox" style="min-width:auto"> Só "minhas" (do papel ativo)</label></div>
+            <button class="secondary" onclick="listarOS()">Listar O.S.</button>
+        </div>
+
+        <div id="resOS"></div>
+        <div id="listaOS"></div>
+    </div>
+
+    <script>
 const origem = location.origin;
 document.getElementById('origem').textContent = origem;
 
 const emails = {
-  Gestor: 'paulo.gestor@sustennutri.com.br',
-  Tecnico: 'carlos.tecnico@sustennutri.com.br',
-  Operador: 'renata.operadora@sustennutri.com.br'
+          Gestor: 'paulo.gestor@sustennutri.com.br',
+          Tecnico: 'carlos.tecnico@sustennutri.com.br',
+          Operador: 'renata.operadora@sustennutri.com.br'
 };
 const tokens = { Gestor: null, Tecnico: null, Operador: null };
 const cache = { equipamentos: [], pecas: [], causas: [], tecnicos: [] };
@@ -214,312 +398,344 @@ function papelAtivo() { return document.getElementById('papelAtivo').value; }
 function tokenAtivo() { return tokens[papelAtivo()]; }
 
 async function chamar(metodo, caminho, corpo) {
-  const headers = { 'Content-Type': 'application/json' };
-  const tok = tokenAtivo();
-  if (tok) headers['Authorization'] = 'Bearer ' + tok;
-  const resp = await fetch(origem + caminho, {
-    method: metodo, headers, body: corpo !== undefined ? JSON.stringify(corpo) : undefined
-  });
-  let dados = null;
-  const texto = await resp.text();
-  if (texto) { try { dados = JSON.parse(texto); } catch { dados = texto; } }
-  return { status: resp.status, ok: resp.ok, dados };
+          const headers = { 'Content-Type': 'application/json' };
+          const tok = tokenAtivo();
+          if (tok) headers['Authorization'] = 'Bearer ' + tok;
+          const resp = await fetch(origem + caminho, {
+            method: metodo, headers, body: corpo !== undefined ? JSON.stringify(corpo) : undefined
+          });
+          let dados = null;
+          const texto = await resp.text();
+          if (texto) { try { dados = JSON.parse(texto); } catch { dados = texto; } }
+          return { status: resp.status, ok: resp.ok, dados };
 }
 
 function mostrar(elId, r) {
-  const el = document.getElementById(elId);
-  el.className = 'result ' + (r.ok ? 'ok' : 'err');
-  el.textContent = 'HTTP ' + r.status + '\n' + JSON.stringify(r.dados, null, 2);
+          const el = document.getElementById(elId);
+          el.className = 'result ' + (r.ok ? 'ok' : 'err');
+          el.textContent = 'HTTP ' + r.status + '\n' + JSON.stringify(r.dados, null, 2);
 }
 
 // ---------- Login ----------
 async function login(papel) {
-  const senha = document.getElementById('senha').value;
-  const r = await chamar('POST', '/api/auth/login', { email: emails[papel], senha });
-  const badge = document.getElementById('status' + papel);
-  if (r.ok) {
-    tokens[papel] = r.dados.token;
-    badge.className = 'badge ok';
-    badge.textContent = papel + ': ' + r.dados.nome + ' (' + r.dados.papeis.join(',') + ')';
-  } else {
-    tokens[papel] = null;
-    badge.className = 'badge err';
-    badge.textContent = papel + ': falhou (' + r.status + ')';
-  }
+          const senha = document.getElementById('senha').value;
+          const r = await chamar('POST', '/api/auth/login', { email: emails[papel], senha });
+          const badge = document.getElementById('status' + papel);
+          if (r.ok) {
+            tokens[papel] = r.dados.token;
+            badge.className = 'badge ok';
+            badge.textContent = papel + ': ' + r.dados.nome + ' (' + r.dados.papeis.join(',') + ')';
+          } else {
+            tokens[papel] = null;
+            badge.className = 'badge err';
+            badge.textContent = papel + ': falhou (' + r.status + ')';
+          }
 }
 
 // ---------- Listas de apoio (preenchem os <select>) ----------
 async function carregarListas() {
-  const eq = await chamar('GET', '/api/equipamentos?incluirInativos=true');
-  if (eq.ok) cache.equipamentos = eq.dados;
-  const pe = await chamar('GET', '/api/pecas');
-  if (pe.ok) cache.pecas = pe.dados;
-  const ca = await chamar('GET', '/api/causas-falha?incluirInativos=true');
-  if (ca.ok) cache.causas = ca.dados;
-  const te = await chamar('GET', '/api/usuarios?tipo=Tecnico');
-  if (te.ok) cache.tecnicos = te.dados;
+          const eq = await chamar('GET', '/api/equipamentos?incluirInativos=true');
+          if (eq.ok) cache.equipamentos = eq.dados;
+          const pe = await chamar('GET', '/api/pecas');
+          if (pe.ok) cache.pecas = pe.dados;
+          const ca = await chamar('GET', '/api/causas-falha?incluirInativos=true');
+          if (ca.ok) cache.causas = ca.dados;
+          const te = await chamar('GET', '/api/usuarios?tipo=Tecnico');
+          if (te.ok) cache.tecnicos = te.dados;
 
-  preencherSelect('.sel-equipamento', cache.equipamentos, e => e.id, e => e.nome + ' (' + e.codigoPatrimonio + ')');
-  preencherSelect('.sel-peca', cache.pecas, p => p.id, p => p.nome + ' [' + p.codigo + '] — estoque ' + p.quantidadeEstoque);
-  preencherSelect('.sel-causa', cache.causas, c => c.id, c => c.descricao);
-  preencherSelect('.sel-tecnico', cache.tecnicos, t => t.id, t => t.nome);
+          preencherSelect('.sel-equipamento', cache.equipamentos, e => e.id, e => e.nome + ' (' + e.codigoPatrimonio + ')');
+          preencherSelect('.sel-peca', cache.pecas, p => p.id, p => p.nome + ' [' + p.codigo + '] — estoque ' + p.quantidadeEstoque);
+          preencherSelect('.sel-causa', cache.causas, c => c.id, c => c.descricao);
+          preencherSelect('.sel-tecnico', cache.tecnicos, t => t.id, t => t.nome);
 
-  listarEquipamentos(); listarPecas(); listarCausas(); listarTecnicos(); listarPlanos();
+          listarEquipamentos(); listarPecas(); listarCausas(); listarTecnicos(); listarPlanos();
 }
 
 function preencherSelect(seletor, itens, getId, getLabel) {
-  document.querySelectorAll(seletor).forEach(sel => {
-    sel.innerHTML = '';
-    itens.forEach(it => {
-      const op = document.createElement('option');
-      op.value = getId(it); op.textContent = getLabel(it);
-      sel.appendChild(op);
-    });
-  });
+          document.querySelectorAll(seletor).forEach(sel => {
+            sel.innerHTML = '';
+            itens.forEach(it => {
+              const op = document.createElement('option');
+              op.value = getId(it); op.textContent = getLabel(it);
+              sel.appendChild(op);
+            });
+          });
 }
 
 function idCurto(id) { return id ? id.toString().slice(0, 8) + '…' : ''; }
 
 // ---------- Equipamentos ----------
 async function criarEquipamento() {
-  const r = await chamar('POST', '/api/equipamentos', {
-    nome: document.getElementById('eqNome').value,
-    codigoPatrimonio: document.getElementById('eqCodigo').value,
-    setor: document.getElementById('eqSetor').value
-  });
-  mostrar('resEquipamentos', r);
-  if (r.ok) carregarListas();
+          const r = await chamar('POST', '/api/equipamentos', {
+            nome: document.getElementById('eqNome').value,
+            codigoPatrimonio: document.getElementById('eqCodigo').value,
+            setor: document.getElementById('eqSetor').value
+          });
+          mostrar('resEquipamentos', r);
+          if (r.ok) carregarListas();
 }
 async function listarEquipamentos() {
-  const r = await chamar('GET', '/api/equipamentos?incluirInativos=true');
-  mostrar('resEquipamentos', r);
-  if (!r.ok) return;
-  cache.equipamentos = r.dados;
-  preencherSelect('.sel-equipamento', cache.equipamentos, e => e.id, e => e.nome + ' (' + e.codigoPatrimonio + ')');
-  const tb = document.querySelector('#tblEquipamentos tbody'); tb.innerHTML = '';
-  r.dados.forEach(e => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${e.nome}</td><td>${e.codigoPatrimonio}</td><td>${e.setor}</td>
-      <td>${e.ativo ? '✅' : '❌'}</td><td class="idcell">${idCurto(e.id)}</td>
-      <td><button class="small secondary" onclick="alterarEquip('${e.id}', ${!e.ativo})">${e.ativo ? 'Inativar' : 'Ativar'}</button></td>`;
-    tb.appendChild(tr);
-  });
+          const r = await chamar('GET', '/api/equipamentos?incluirInativos=true');
+          mostrar('resEquipamentos', r);
+          if (!r.ok) return;
+          cache.equipamentos = r.dados;
+          preencherSelect('.sel-equipamento', cache.equipamentos, e => e.id, e => e.nome + ' (' + e.codigoPatrimonio + ')');
+          const tb = document.querySelector('#tblEquipamentos tbody'); tb.innerHTML = '';
+          r.dados.forEach(e => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${e.nome}</td><td>${e.codigoPatrimonio}</td><td>${e.setor}</td>
+              <td>${e.ativo ? '✅' : '❌'}</td><td class="idcell">${idCurto(e.id)}</td>
+              <td><button class="small secondary" onclick="alterarEquip('${e.id}', ${!e.ativo})">${e.ativo ? 'Inativar' : 'Ativar'}</button></td>`;
+            tb.appendChild(tr);
+          });
 }
 async function alterarEquip(id, ativar) {
-  const r = await chamar('POST', `/api/equipamentos/${id}/${ativar ? 'ativar' : 'inativar'}`);
-  mostrar('resEquipamentos', r);
-  if (r.ok) listarEquipamentos();
+          const r = await chamar('POST', `/api/equipamentos/${id}/${ativar ? 'ativar' : 'inativar'}`);
+          mostrar('resEquipamentos', r);
+          if (r.ok) listarEquipamentos();
 }
 
 // ---------- Causas de falha ----------
 async function criarCausa() {
-  const r = await chamar('POST', '/api/causas-falha', { descricao: document.getElementById('causaDescricao').value });
-  mostrar('resCausas', r);
-  if (r.ok) carregarListas();
+          const r = await chamar('POST', '/api/causas-falha', { descricao: document.getElementById('causaDescricao').value });
+          mostrar('resCausas', r);
+          if (r.ok) carregarListas();
 }
 async function listarCausas() {
-  const r = await chamar('GET', '/api/causas-falha?incluirInativos=true');
-  mostrar('resCausas', r);
-  if (!r.ok) return;
-  cache.causas = r.dados;
-  preencherSelect('.sel-causa', cache.causas, c => c.id, c => c.descricao);
-  const tb = document.querySelector('#tblCausas tbody'); tb.innerHTML = '';
-  r.dados.forEach(c => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${c.descricao}</td><td>${c.ativo ? '✅' : '❌'}</td><td class="idcell">${idCurto(c.id)}</td>
-      <td><button class="small secondary" onclick="alterarCausa('${c.id}', ${!c.ativo})">${c.ativo ? 'Inativar' : 'Ativar'}</button></td>`;
-    tb.appendChild(tr);
-  });
+          const r = await chamar('GET', '/api/causas-falha?incluirInativos=true');
+          mostrar('resCausas', r);
+          if (!r.ok) return;
+          cache.causas = r.dados;
+          preencherSelect('.sel-causa', cache.causas, c => c.id, c => c.descricao);
+          const tb = document.querySelector('#tblCausas tbody'); tb.innerHTML = '';
+          r.dados.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${c.descricao}</td><td>${c.ativo ? '✅' : '❌'}</td><td class="idcell">${idCurto(c.id)}</td>
+              <td><button class="small secondary" onclick="alterarCausa('${c.id}', ${!c.ativo})">${c.ativo ? 'Inativar' : 'Ativar'}</button></td>`;
+            tb.appendChild(tr);
+          });
 }
 async function alterarCausa(id, ativar) {
-  const r = await chamar('POST', `/api/causas-falha/${id}/${ativar ? 'ativar' : 'inativar'}`);
-  mostrar('resCausas', r);
-  if (r.ok) listarCausas();
+          const r = await chamar('POST', `/api/causas-falha/${id}/${ativar ? 'ativar' : 'inativar'}`);
+          mostrar('resCausas', r);
+          if (r.ok) listarCausas();
 }
 
 // ---------- Peças ----------
 async function criarPeca() {
-  const r = await chamar('POST', '/api/pecas', {
-    codigo: document.getElementById('pecaCodigo').value,
-    nome: document.getElementById('pecaNome').value,
-    quantidadeInicial: Number(document.getElementById('pecaQtd').value),
-    critica: document.getElementById('pecaCritica').checked
-  });
-  mostrar('resPecas', r);
-  if (r.ok) carregarListas();
+          const r = await chamar('POST', '/api/pecas', {
+            codigo: document.getElementById('pecaCodigo').value,
+            nome: document.getElementById('pecaNome').value,
+            quantidadeInicial: Number(document.getElementById('pecaQtd').value),
+            critica: document.getElementById('pecaCritica').checked
+          });
+          mostrar('resPecas', r);
+          if (r.ok) carregarListas();
 }
 async function listarPecas() {
-  const r = await chamar('GET', '/api/pecas');
-  mostrar('resPecas', r);
-  if (!r.ok) return;
-  cache.pecas = r.dados;
-  preencherSelect('.sel-peca', cache.pecas, p => p.id, p => p.nome + ' [' + p.codigo + '] — estoque ' + p.quantidadeEstoque);
-  const tb = document.querySelector('#tblPecas tbody'); tb.innerHTML = '';
-  r.dados.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${p.codigo}</td><td>${p.nome}</td><td>${p.quantidadeEstoque}</td>
-      <td>${p.critica ? '⚠️ sim' : 'não'}</td><td class="idcell">${idCurto(p.id)}</td>`;
-    tb.appendChild(tr);
-  });
+          const r = await chamar('GET', '/api/pecas');
+          mostrar('resPecas', r);
+          if (!r.ok) return;
+          cache.pecas = r.dados;
+          preencherSelect('.sel-peca', cache.pecas, p => p.id, p => p.nome + ' [' + p.codigo + '] — estoque ' + p.quantidadeEstoque);
+          const tb = document.querySelector('#tblPecas tbody'); tb.innerHTML = '';
+          r.dados.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${p.codigo}</td><td>${p.nome}</td><td>${p.quantidadeEstoque}</td>
+              <td>${p.critica ? '⚠️ sim' : 'não'}</td><td class="idcell">${idCurto(p.id)}</td>`;
+            tb.appendChild(tr);
+          });
 }
 async function entradaEstoque() {
-  const id = document.getElementById('pecaEntradaId').value;
-  const r = await chamar('POST', `/api/pecas/${id}/entrada`, { quantidade: Number(document.getElementById('pecaEntradaQtd').value) });
-  mostrar('resPecas', r);
-  if (r.ok) listarPecas();
+          const id = document.getElementById('pecaEntradaId').value;
+          const r = await chamar('POST', `/api/pecas/${id}/entrada`, { quantidade: Number(document.getElementById('pecaEntradaQtd').value) });
+          mostrar('resPecas', r);
+          if (r.ok) listarPecas();
 }
 
 // ---------- Técnicos ----------
 async function listarTecnicos() {
-  const r = await chamar('GET', '/api/usuarios?tipo=Tecnico');
-  mostrar('resTecnicos', r);
-  if (!r.ok) return;
-  cache.tecnicos = r.dados;
-  preencherSelect('.sel-tecnico', cache.tecnicos, t => t.id, t => t.nome);
-  const tb = document.querySelector('#tblTecnicos tbody'); tb.innerHTML = '';
-  r.dados.forEach(t => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${t.nome}</td><td>${t.email}</td><td>${t.ativo ? '✅' : '❌'}</td><td class="idcell">${idCurto(t.id)}</td>`;
-    tb.appendChild(tr);
-  });
+          const r = await chamar('GET', '/api/usuarios?tipo=Tecnico');
+          mostrar('resTecnicos', r);
+          if (!r.ok) return;
+          cache.tecnicos = r.dados;
+          preencherSelect('.sel-tecnico', cache.tecnicos, t => t.id, t => t.nome);
+          const tb = document.querySelector('#tblTecnicos tbody'); tb.innerHTML = '';
+          r.dados.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${t.nome}</td><td>${t.email}</td><td>${t.ativo ? '✅' : '❌'}</td><td class="idcell">${idCurto(t.id)}</td>`;
+            tb.appendChild(tr);
+          });
 }
 
 // ---------- Planos preventivos ----------
 async function criarPlano() {
-  const r = await chamar('POST', '/api/planos-preventivos', {
-    equipamentoId: document.getElementById('ppEquipamento').value,
-    tecnicoResponsavelId: document.getElementById('ppTecnico').value,
-    descricao: document.getElementById('ppDescricao').value,
-    periodicidadeDias: Number(document.getElementById('ppPeriodicidade').value),
-    proximaExecucao: document.getElementById('ppProxima').value
-  });
-  mostrar('resPlanos', r);
-  if (r.ok) listarPlanos();
+          const r = await chamar('POST', '/api/planos-preventivos', {
+            equipamentoId: document.getElementById('ppEquipamento').value,
+            tecnicoResponsavelId: document.getElementById('ppTecnico').value,
+            descricao: document.getElementById('ppDescricao').value,
+            periodicidadeDias: Number(document.getElementById('ppPeriodicidade').value),
+            proximaExecucao: document.getElementById('ppProxima').value
+          });
+          mostrar('resPlanos', r);
+          if (r.ok) listarPlanos();
 }
 async function listarPlanos() {
-  const r = await chamar('GET', '/api/planos-preventivos?incluirInativos=true');
-  mostrar('resPlanos', r);
-  if (!r.ok) return;
-  const tb = document.querySelector('#tblPlanos tbody'); tb.innerHTML = '';
-  r.dados.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${p.equipamentoNome}</td><td>${p.tecnicoResponsavelNome}</td><td>${p.descricao}</td>
-      <td>${p.periodicidadeDias}d</td><td>${p.proximaExecucao}</td><td>${p.ativo ? '✅' : '❌'}</td>
-      <td class="idcell">${idCurto(p.id)}</td>
-      <td><button class="small secondary" onclick="alterarPlano('${p.id}', ${!p.ativo})">${p.ativo ? 'Inativar' : 'Ativar'}</button></td>`;
-    tb.appendChild(tr);
-  });
+          const r = await chamar('GET', '/api/planos-preventivos?incluirInativos=true');
+          mostrar('resPlanos', r);
+          if (!r.ok) return;
+          const tb = document.querySelector('#tblPlanos tbody'); tb.innerHTML = '';
+          r.dados.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${p.equipamentoNome}</td><td>${p.tecnicoResponsavelNome}</td><td>${p.descricao}</td>
+              <td>${p.periodicidadeDias}d</td><td>${p.proximaExecucao}</td><td>${p.ativo ? '✅' : '❌'}</td>
+              <td class="idcell">${idCurto(p.id)}</td>
+              <td><button class="small secondary" onclick="alterarPlano('${p.id}', ${!p.ativo})">${p.ativo ? 'Inativar' : 'Ativar'}</button></td>`;
+            tb.appendChild(tr);
+          });
 }
 async function alterarPlano(id, ativar) {
-  const r = await chamar('POST', `/api/planos-preventivos/${id}/${ativar ? 'ativar' : 'inativar'}`);
-  mostrar('resPlanos', r);
-  if (r.ok) listarPlanos();
+          const r = await chamar('POST', `/api/planos-preventivos/${id}/${ativar ? 'ativar' : 'inativar'}`);
+          mostrar('resPlanos', r);
+          if (r.ok) listarPlanos();
+}
+
+// ---------- Indicadores ----------
+async function consultarIndicadores() {
+          const qs = new URLSearchParams();
+          const ini = document.getElementById('indInicio').value;
+          const fim = document.getElementById('indFim').value;
+          const setor = document.getElementById('indSetor').value;
+          if (ini) qs.set('dataInicio', ini);
+          if (fim) qs.set('dataFim', fim);
+          if (setor) qs.set('setor', setor);
+
+          const r = await chamar('GET', '/api/indicadores?' + qs.toString());
+          mostrar('resIndicadores', r);
+          if (!r.ok) return;
+
+          const g = r.dados.geral;
+          document.getElementById('indGeral').innerHTML = `
+            <b>Geral (${r.dados.dataInicio} a ${r.dados.dataFim}):</b>
+            ${g.totalConcluidas} concluídas — ${g.totalPreventivas} preventivas / ${g.totalCorretivas} corretivas —
+            % preventiva: <b>${g.percentualPreventiva ?? '—'}${g.percentualPreventiva !== null ? '%' : ''}</b> —
+            MTTR: <b>${g.mttrMinutos ?? '—'}</b> min —
+            MTBF: <b>${g.mtbfDias ?? '—'}</b> dias`;
+
+          const tb = document.querySelector('#tblIndicadoresSetor tbody'); tb.innerHTML = '';
+          r.dados.porSetor.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${s.setor}</td><td>${s.totalConcluidas}</td><td>${s.totalPreventivas}</td>
+              <td>${s.totalCorretivas}</td><td>${s.percentualPreventiva ?? '—'}</td>
+              <td>${s.mttrMinutos ?? '—'}</td><td>${s.mtbfDias ?? '—'}</td>`;
+            tb.appendChild(tr);
+          });
 }
 
 // ---------- Ordens de serviço ----------
 async function abrirOS() {
-  const r = await chamar('POST', '/api/ordensservico', {
-    equipamentoId: document.getElementById('osEquipamento').value,
-    descricaoProblema: document.getElementById('osDescricao').value,
-    prioridade: document.getElementById('osPrioridade').value,
-    tipoManutencao: document.getElementById('osTipo').value
-  });
-  mostrar('resOS', r);
-  if (r.ok) listarOS();
+          const r = await chamar('POST', '/api/ordensservico', {
+            equipamentoId: document.getElementById('osEquipamento').value,
+            descricaoProblema: document.getElementById('osDescricao').value,
+            prioridade: document.getElementById('osPrioridade').value,
+            tipoManutencao: document.getElementById('osTipo').value
+          });
+          mostrar('resOS', r);
+          if (r.ok) listarOS();
 }
 
 async function listarOS() {
-  const status = document.getElementById('osFiltroStatus').value;
-  const prioridade = document.getElementById('osFiltroPrioridade').value;
-  const minhas = document.getElementById('osFiltroMinhas').checked;
-  const qs = new URLSearchParams();
-  if (status) qs.set('status', status);
-  if (prioridade) qs.set('prioridade', prioridade);
-  if (minhas) qs.set('minhas', 'true');
-  const r = await chamar('GET', '/api/ordensservico?' + qs.toString());
-  mostrar('resOS', r);
-  if (!r.ok) return;
+          const status = document.getElementById('osFiltroStatus').value;
+          const prioridade = document.getElementById('osFiltroPrioridade').value;
+          const minhas = document.getElementById('osFiltroMinhas').checked;
+          const qs = new URLSearchParams();
+          if (status) qs.set('status', status);
+          if (prioridade) qs.set('prioridade', prioridade);
+          if (minhas) qs.set('minhas', 'true');
+          const r = await chamar('GET', '/api/ordensservico?' + qs.toString());
+          mostrar('resOS', r);
+          if (!r.ok) return;
 
-  const div = document.getElementById('listaOS'); div.innerHTML = '';
-  r.dados.forEach(os => div.appendChild(linhaOS(os)));
+          const div = document.getElementById('listaOS'); div.innerHTML = '';
+          r.dados.forEach(os => div.appendChild(linhaOS(os)));
 }
 
 function linhaOS(os) {
-  const wrap = document.createElement('details');
-  wrap.innerHTML = `<summary>
-      <b>${os.numeroOS}</b> — ${os.status} — ${os.prioridade} — ${os.tipoManutencao}${os.geradaAutomaticamente ? ' 🤖auto' : ''}
-      — ${os.equipamentoNome} — op: ${os.operadorNome}${os.tecnicoNome ? ' — téc: ' + os.tecnicoNome : ''}
-    </summary>`;
+          const wrap = document.createElement('details');
+          wrap.innerHTML = `<summary>
+              <b>${os.numeroOS}</b> — ${os.status} — ${os.prioridade} — ${os.tipoManutencao}${os.geradaAutomaticamente ? ' 🤖auto' : ''}
+              — ${os.equipamentoNome} — op: ${os.operadorNome}${os.tecnicoNome ? ' — téc: ' + os.tecnicoNome : ''}
+            </summary>`;
 
-  const body = document.createElement('div');
-  body.style.padding = '8px 0 4px 14px';
-  body.innerHTML = `<div style="color:var(--muted);margin-bottom:6px">${os.descricaoProblema}</div>`;
+          const body = document.createElement('div');
+          body.style.padding = '8px 0 4px 14px';
+          body.innerHTML = `<div style="color:var(--muted);margin-bottom:6px">${os.descricaoProblema}</div>`;
 
-  // Atribuir (Gestor)
-  const acAtrib = document.createElement('div'); acAtrib.className = 'ac-row';
-  const selTec = document.createElement('select'); selTec.className = 'sel-tecnico';
-  preencherUmSelect(selTec, cache.tecnicos, t => t.id, t => t.nome);
-  const btnAtrib = document.createElement('button'); btnAtrib.className = 'small';
-  btnAtrib.textContent = 'Atribuir técnico (Gestor)';
-  btnAtrib.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/atribuir`, { tecnicoId: selTec.value }); mostrar('resOS', r); if (r.ok) listarOS(); };
-  acAtrib.append(selTec, btnAtrib);
+          // Atribuir (Gestor)
+          const acAtrib = document.createElement('div'); acAtrib.className = 'ac-row';
+          const selTec = document.createElement('select'); selTec.className = 'sel-tecnico';
+          preencherUmSelect(selTec, cache.tecnicos, t => t.id, t => t.nome);
+          const btnAtrib = document.createElement('button'); btnAtrib.className = 'small';
+          btnAtrib.textContent = 'Atribuir técnico (Gestor)';
+          btnAtrib.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/atribuir`, { tecnicoId: selTec.value }); mostrar('resOS', r); if (r.ok) listarOS(); };
+          acAtrib.append(selTec, btnAtrib);
 
-  // Iniciar / Retomar (Tecnico)
-  const acFluxo = document.createElement('div'); acFluxo.className = 'ac-row';
-  const btnIniciar = botaoAcao('Iniciar (Técnico)', () => chamar('POST', `/api/ordensservico/${os.id}/iniciar`, {}));
-  const btnRetomar = botaoAcao('Retomar (Técnico)', () => chamar('POST', `/api/ordensservico/${os.id}/retomar`, {}));
-  acFluxo.append(btnIniciar, btnRetomar);
+          // Iniciar / Retomar (Tecnico)
+          const acFluxo = document.createElement('div'); acFluxo.className = 'ac-row';
+          const btnIniciar = botaoAcao('Iniciar (Técnico)', () => chamar('POST', `/api/ordensservico/${os.id}/iniciar`, {}));
+          const btnRetomar = botaoAcao('Retomar (Técnico)', () => chamar('POST', `/api/ordensservico/${os.id}/retomar`, {}));
+          acFluxo.append(btnIniciar, btnRetomar);
 
-  // Pausar (Tecnico)
-  const acPausar = document.createElement('div'); acPausar.className = 'ac-row';
-  const inMotivoPausa = document.createElement('input'); inMotivoPausa.placeholder = 'Motivo da pausa';
-  const btnPausar = document.createElement('button'); btnPausar.className = 'small secondary'; btnPausar.textContent = 'Pausar (Técnico)';
-  btnPausar.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/pausar`, { motivo: inMotivoPausa.value }); mostrar('resOS', r); if (r.ok) listarOS(); };
-  acPausar.append(inMotivoPausa, btnPausar);
+          // Pausar (Tecnico)
+          const acPausar = document.createElement('div'); acPausar.className = 'ac-row';
+          const inMotivoPausa = document.createElement('input'); inMotivoPausa.placeholder = 'Motivo da pausa';
+          const btnPausar = document.createElement('button'); btnPausar.className = 'small secondary'; btnPausar.textContent = 'Pausar (Técnico)';
+          btnPausar.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/pausar`, { motivo: inMotivoPausa.value }); mostrar('resOS', r); if (r.ok) listarOS(); };
+          acPausar.append(inMotivoPausa, btnPausar);
 
-  // Registrar peça (Tecnico)
-  const acPeca = document.createElement('div'); acPeca.className = 'ac-row';
-  const selPeca = document.createElement('select'); selPeca.className = 'sel-peca';
-  preencherUmSelect(selPeca, cache.pecas, p => p.id, p => p.nome + ' [' + p.codigo + ']');
-  const inQtdPeca = document.createElement('input'); inQtdPeca.type = 'number'; inQtdPeca.value = '1'; inQtdPeca.style.minWidth = '70px';
-  const btnPeca = document.createElement('button'); btnPeca.className = 'small secondary'; btnPeca.textContent = 'Registrar peça (Técnico)';
-  btnPeca.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/pecas`, { pecaId: selPeca.value, quantidade: Number(inQtdPeca.value) }); mostrar('resOS', r); if (r.ok) { listarOS(); listarPecas(); } };
-  acPeca.append(selPeca, inQtdPeca, btnPeca);
+          // Registrar peça (Tecnico)
+          const acPeca = document.createElement('div'); acPeca.className = 'ac-row';
+          const selPeca = document.createElement('select'); selPeca.className = 'sel-peca';
+          preencherUmSelect(selPeca, cache.pecas, p => p.id, p => p.nome + ' [' + p.codigo + ']');
+          const inQtdPeca = document.createElement('input'); inQtdPeca.type = 'number'; inQtdPeca.value = '1'; inQtdPeca.style.minWidth = '70px';
+          const btnPeca = document.createElement('button'); btnPeca.className = 'small secondary'; btnPeca.textContent = 'Registrar peça (Técnico)';
+          btnPeca.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/pecas`, { pecaId: selPeca.value, quantidade: Number(inQtdPeca.value) }); mostrar('resOS', r); if (r.ok) { listarOS(); listarPecas(); } };
+          acPeca.append(selPeca, inQtdPeca, btnPeca);
 
-  // Concluir (Tecnico)
-  const acConcluir = document.createElement('div'); acConcluir.className = 'ac-row';
-  const selCausa = document.createElement('select'); selCausa.className = 'sel-causa';
-  preencherUmSelect(selCausa, cache.causas, c => c.id, c => c.descricao);
-  const inObs = document.createElement('input'); inObs.placeholder = 'Observações (opcional)'; inObs.style.minWidth = '200px';
-  const btnConcluir = document.createElement('button'); btnConcluir.className = 'small'; btnConcluir.textContent = 'Concluir (Técnico)';
-  btnConcluir.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/concluir`, { causaFalhaId: selCausa.value, observacoesTecnicas: inObs.value }); mostrar('resOS', r); if (r.ok) listarOS(); };
-  acConcluir.append(selCausa, inObs, btnConcluir);
+          // Concluir (Tecnico)
+          const acConcluir = document.createElement('div'); acConcluir.className = 'ac-row';
+          const selCausa = document.createElement('select'); selCausa.className = 'sel-causa';
+          preencherUmSelect(selCausa, cache.causas, c => c.id, c => c.descricao);
+          const inObs = document.createElement('input'); inObs.placeholder = 'Observações (opcional)'; inObs.style.minWidth = '200px';
+          const btnConcluir = document.createElement('button'); btnConcluir.className = 'small'; btnConcluir.textContent = 'Concluir (Técnico)';
+          btnConcluir.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/concluir`, { causaFalhaId: selCausa.value, observacoesTecnicas: inObs.value }); mostrar('resOS', r); if (r.ok) listarOS(); };
+          acConcluir.append(selCausa, inObs, btnConcluir);
 
-  // Cancelar (Gestor)
-  const acCancelar = document.createElement('div'); acCancelar.className = 'ac-row';
-  const inMotivoCancelar = document.createElement('input'); inMotivoCancelar.placeholder = 'Motivo (opcional)';
-  const btnCancelar = document.createElement('button'); btnCancelar.className = 'small danger'; btnCancelar.textContent = 'Cancelar (Gestor)';
-  btnCancelar.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/cancelar`, { motivo: inMotivoCancelar.value }); mostrar('resOS', r); if (r.ok) listarOS(); };
-  acCancelar.append(inMotivoCancelar, btnCancelar);
+          // Cancelar (Gestor)
+          const acCancelar = document.createElement('div'); acCancelar.className = 'ac-row';
+          const inMotivoCancelar = document.createElement('input'); inMotivoCancelar.placeholder = 'Motivo (opcional)';
+          const btnCancelar = document.createElement('button'); btnCancelar.className = 'small danger'; btnCancelar.textContent = 'Cancelar (Gestor)';
+          btnCancelar.onclick = async () => { const r = await chamar('POST', `/api/ordensservico/${os.id}/cancelar`, { motivo: inMotivoCancelar.value }); mostrar('resOS', r); if (r.ok) listarOS(); };
+          acCancelar.append(inMotivoCancelar, btnCancelar);
 
-  // Detalhe
-  const btnDetalhe = document.createElement('button'); btnDetalhe.className = 'small secondary'; btnDetalhe.textContent = 'Ver detalhe completo';
-  btnDetalhe.onclick = async () => { const r = await chamar('GET', `/api/ordensservico/${os.id}`); mostrar('resOS', r); };
+          // Detalhe
+          const btnDetalhe = document.createElement('button'); btnDetalhe.className = 'small secondary'; btnDetalhe.textContent = 'Ver detalhe completo';
+          btnDetalhe.onclick = async () => { const r = await chamar('GET', `/api/ordensservico/${os.id}`); mostrar('resOS', r); };
 
-  body.append(acAtrib, acFluxo, acPausar, acPeca, acConcluir, acCancelar, btnDetalhe);
-  wrap.appendChild(body);
-  return wrap;
+          body.append(acAtrib, acFluxo, acPausar, acPeca, acConcluir, acCancelar, btnDetalhe);
+          wrap.appendChild(body);
+          return wrap;
 }
 
 function botaoAcao(texto, acao) {
-  const b = document.createElement('button'); b.className = 'small secondary'; b.textContent = texto;
-  b.onclick = async () => { const r = await acao(); mostrar('resOS', r); if (r.ok) listarOS(); };
-  return b;
+          const b = document.createElement('button'); b.className = 'small secondary'; b.textContent = texto;
+          b.onclick = async () => { const r = await acao(); mostrar('resOS', r); if (r.ok) listarOS(); };
+          return b;
 }
 function preencherUmSelect(sel, itens, getId, getLabel) {
-  sel.innerHTML = '';
-  itens.forEach(it => { const op = document.createElement('option'); op.value = getId(it); op.textContent = getLabel(it); sel.appendChild(op); });
+          sel.innerHTML = '';
+          itens.forEach(it => { const op = document.createElement('option'); op.value = getId(it); op.textContent = getLabel(it); sel.appendChild(op); });
 }
-</script>
+    </script>
 </body>
 </html>
