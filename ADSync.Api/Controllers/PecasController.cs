@@ -7,7 +7,7 @@ namespace ADSync.Api.Controllers;
 
 [ApiController]
 [Route("api/pecas")]
-[Authorize] // listar/consultar: qualquer usuário logado (o técnico precisa escolher a peça). Cadastrar/alterar: só Gestor.
+[Authorize(Roles = "Gestor,Tecnico")] // Estoque restrito à manutenção; alterações cadastrais só pelo Gestor.
 public class PecasController : ControllerBase
 {
     private readonly IPecaService _service;

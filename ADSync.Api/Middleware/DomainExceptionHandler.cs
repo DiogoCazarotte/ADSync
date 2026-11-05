@@ -12,6 +12,12 @@ public class DomainExceptionHandler : IExceptionHandler
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
+        if (httpContext.RequestAborted.IsCancellationRequested) return true;
+        if (DatabaseAvailability.IsUnavailable(exception))
+        {
+            await DatabaseAvailability.WriteResponseAsync(httpContext, cancellationToken);
+            return true;
+        }
         var (status, titulo) = exception switch
         {
             NaoEncontradoException => (StatusCodes.Status404NotFound, "Não encontrado"),
@@ -25,8 +31,7 @@ public class DomainExceptionHandler : IExceptionHandler
         if (status == 0)
             return false;
 
-        httpContext.Response.StatusCode = status;
-        await httpContext.Response.WriteAsJsonAsync(new ProblemDetails
+        await ProblemResponseWriter.WriteAsync(httpContext, new ProblemDetails
         {
             Status = status,
             Title = titulo,

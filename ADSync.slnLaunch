@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "NexService - Supabase",
+    "Projects": [
+      {
+        "Path": "ADSync.Api\\ADSync.Api.csproj",
+        "Action": "Start",
+        "DebugTarget": "NexService Local"
+      },
+      {
+        "Path": "ADSync.Client\\ADSync.Client.csproj",
+        "Action": "Start",
+        "DebugTarget": "http"
+      }
+    ]
+  }
+]

@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/tools/">
+    <Project Path="tools/DemoDatabase/DemoDatabase.csproj" />
+  </Folder>
   <Project Path="ADSync.Api/ADSync.Api.csproj" />
   <Project Path="ADSync.Application/ADSync.Application.csproj" />
   <Project Path="ADSync.Client/ADSync.Client.csproj" />

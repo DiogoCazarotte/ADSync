@@ -21,10 +21,28 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
     public DbSet<OsRegistroTempo> OsRegistrosTempo => Set<OsRegistroTempo>();
     public DbSet<OsPecaUtilizada> OsPecasUtilizadas => Set<OsPecaUtilizada>();
     public DbSet<PlanoPreventivo> PlanosPreventivos => Set<PlanoPreventivo>();
+    public DbSet<EventoSincronizado> EventosSincronizados => Set<EventoSincronizado>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder); // cria as tabelas do Identity (AspNetUsers, AspNetRoles, etc.)
+
+        modelBuilder.Entity<EventoSincronizado>(e =>
+        {
+            e.ToTable("os_eventos_sincronizados");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
+            e.Property(x => x.OrdemServicoId).HasColumnName("ordem_servico_id");
+            e.Property(x => x.UsuarioId).HasColumnName("usuario_id");
+            e.Property(x => x.OcorridoEm).HasColumnName("ocorrido_em");
+            e.Property(x => x.Hash).HasColumnName("hash").HasMaxLength(64);
+            e.Property(x => x.Resposta).HasColumnName("resposta");
+            e.HasIndex(x => new { x.OrdemServicoId, x.OcorridoEm });
+            e.HasOne<OrdemServico>().WithMany().HasForeignKey(x => x.OrdemServicoId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Usuario>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Restrict);
+        });
+        // Coluna de sistema do PostgreSQL: protege também contra mudanças online concorrentes.
+        modelBuilder.Entity<OrdemServico>().Property<uint>("Version").IsRowVersion().HasColumnName("xmin");
 
 
         modelBuilder.HasPostgresEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: new NpgsqlNullNameTranslator());

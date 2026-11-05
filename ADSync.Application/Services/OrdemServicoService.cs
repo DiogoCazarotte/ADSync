@@ -42,7 +42,11 @@ public class OrdemServicoService : IOrdemServicoService
         {
             var existente = await _repository.ObterPorClientSyncIdAsync(dto.ClientSyncId.Value);
             if (existente is not null)
+            {
+                if (existente.OperadorId != dto.OperadorId)
+                    throw new AcessoNegadoException("Identificador de sincronização pertence a outra conta.");
                 return MapearResumo(existente);
+            }
         }
 
         var equipamento = await _equipamentos.ObterPorIdAsync(dto.EquipamentoId)
@@ -72,17 +76,20 @@ public class OrdemServicoService : IOrdemServicoService
             CriadoOffline = dto.CriadoOffline
         };
 
-        await _repository.AdicionarAsync(ordemServico);
-        await _repository.SalvarAlteracoesAsync();
+        var salva = await _repository.AdicionarComAtribuicaoAsync(ordemServico);
 
         // Recarrega com os relacionamentos (Equipamento, Operador, Tecnico) para montar a resposta
-        var criada = await _repository.ObterPorIdAsync(ordemServico.Id);
+        var criada = await _repository.ObterPorIdAsync(salva.Id);
         return MapearResumo(criada!);
     }
 
-    public async Task<OrdemServicoDetalheDto?> ObterDetalheAsync(Guid id)
+    public async Task<OrdemServicoDetalheDto?> ObterDetalheAsync(Guid id, Guid? tecnicoId = null, Guid? operadorId = null)
     {
         var os = await _repository.ObterDetalhadoAsync(id);
+        // Não revela a existência nem os dados de ordens fora do escopo do usuário.
+        if (os is not null &&
+            ((tecnicoId.HasValue && os.TecnicoId != tecnicoId) ||
+             (operadorId.HasValue && os.OperadorId != operadorId))) return null;
         return os is null ? null : MapearDetalhe(os);
     }
 

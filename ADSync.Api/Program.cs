@@ -15,28 +15,35 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Npgsql.NameTranslation;
+using ADSync.Infrastructure.Safety;
 
 var builder = WebApplication.CreateBuilder(args);
+var readOnly = builder.Configuration.GetValue("Safety:ReadOnly", true);
+var seedEnabled = builder.Configuration.GetValue("Seed:Enabled", false);
+var preventiveEnabled = builder.Configuration.GetValue("Preventivas:GeracaoAutomaticaHabilitada", false);
+if (readOnly && (seedEnabled || preventiveEnabled))
+    throw new InvalidOperationException("Modo somente leitura exige seed e geração preventiva desativados.");
 
 // ---------- Banco de dados (PostgreSQL / Supabase) ----------
 var connectionString = builder.Configuration.GetConnectionString("AdSync");
 
+var enumTranslator = new NpgsqlNullNameTranslator();
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-dataSourceBuilder.MapEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: new NpgsqlNullNameTranslator());
-dataSourceBuilder.MapEnum<StatusOS>("status_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
-dataSourceBuilder.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
-dataSourceBuilder.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: new NpgsqlNullNameTranslator());
-dataSourceBuilder.MapEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: new NpgsqlNullNameTranslator());
+dataSourceBuilder.MapEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: enumTranslator);
+dataSourceBuilder.MapEnum<StatusOS>("status_os_enum", nameTranslator: enumTranslator);
+dataSourceBuilder.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: enumTranslator);
+dataSourceBuilder.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: enumTranslator);
+dataSourceBuilder.MapEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: enumTranslator);
 var dataSource = dataSourceBuilder.Build();
 
 builder.Services.AddDbContext<AdSyncDbContext>(options => options.UseNpgsql(dataSource, o =>
 {
-    o.MapEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: new NpgsqlNullNameTranslator());
-    o.MapEnum<StatusOS>("status_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
-    o.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: new NpgsqlNullNameTranslator());
-    o.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: new NpgsqlNullNameTranslator());
-    o.MapEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: new NpgsqlNullNameTranslator());
-}));
+    o.MapEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: enumTranslator);
+    o.MapEnum<StatusOS>("status_os_enum", nameTranslator: enumTranslator);
+    o.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: enumTranslator);
+    o.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: enumTranslator);
+    o.MapEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: enumTranslator);
+}).AddInterceptors(new ReadOnlySaveChangesInterceptor(readOnly)));
 
 // ---------- Identity (usuários, senhas e papéis) ----------
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -71,6 +78,11 @@ builder.Services.AddAuthentication(options =>
     .AddJwtBearer(options =>
     {
         options.MapInboundClaims = false; // mantém os nomes curtos: "sub", "role", "name"...
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = AccountTokenValidation.ValidateAsync,
+            OnChallenge = AccountTokenValidation.ChallengeAsync
+        };
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -95,6 +107,7 @@ builder.Services.AddScoped<IPecaRepository, PecaRepository>();
 builder.Services.AddScoped<ICausaFalhaRepository, CausaFalhaRepository>();
 builder.Services.AddScoped<IEquipamentoRepository, EquipamentoRepository>();
 builder.Services.AddScoped<IOrdemServicoService, OrdemServicoService>();
+builder.Services.AddScoped<ADSync.Infrastructure.Services.AtendimentoOfflineService>();
 builder.Services.AddScoped<IEquipamentoService, EquipamentoService>();
 builder.Services.AddScoped<ICausaFalhaService, CausaFalhaService>();
 builder.Services.AddScoped<IPecaService, PecaService>();
@@ -105,7 +118,8 @@ builder.Services.AddScoped<IPlanoPreventivoRepository, PlanoPreventivoRepository
 builder.Services.AddScoped<IPlanoPreventivoService, PlanoPreventivoService>();
 
 // Job que abre as O.S. preventivas sozinho quando a data do plano chega.
-builder.Services.AddHostedService<GeracaoPreventivaBackgroundService>();
+if (preventiveEnabled)
+    builder.Services.AddHostedService<GeracaoPreventivaBackgroundService>();
 
 // ---------- Indicadores (RF07/RF10): MTTR, MTBF e % preventiva ----------
 builder.Services.AddScoped<IIndicadoresRepository, IndicadoresRepository>();
@@ -135,8 +149,11 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
     // Popula roles, usuários de exemplo, equipamentos e causas de falha (idempotente)
-    using var scope = app.Services.CreateScope();
-    await DbSeeder.SeedAsync(scope.ServiceProvider, app.Configuration["Seed:SenhaDev"]);
+    if (seedEnabled)
+    {
+        using var scope = app.Services.CreateScope();
+        await DbSeeder.SeedAsync(scope.ServiceProvider, app.Configuration["Seed:SenhaDev"]);
+    }
 
     // Console de testes (wwwroot/teste.html), só em desenvolvimento.
     // Mesma origem da API: não precisa de CORS. Abra https://localhost:<porta>/teste.html
@@ -146,12 +163,31 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment()) app.UseHttpsRedirection();
 
 app.UseCors("Client");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Login can invoke Identity SaveChanges (lockout/reset/rehash); the interceptor
+// blocks those writes too. No business mutation or offline replay is accepted.
+app.Use(async (context, next) =>
+{
+    if (readOnly && !HttpMethods.IsGet(context.Request.Method)
+        && !HttpMethods.IsHead(context.Request.Method)
+        && !HttpMethods.IsOptions(context.Request.Method)
+        && !(HttpMethods.IsPost(context.Request.Method) && context.Request.Path.Equals("/api/auth/login", StringComparison.OrdinalIgnoreCase)))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { mensagem = "Validação somente leitura: gravações e sincronização estão desativadas." });
+        return;
+    }
+    await next();
+});
+
+app.MapGet("/api/runtime", () => new { readOnly, seedEnabled, preventiveEnabled,
+    technicalOfflineEnabled = !readOnly && app.Configuration.GetValue("Offline:Enabled", false) });
 
 app.MapControllers();
 

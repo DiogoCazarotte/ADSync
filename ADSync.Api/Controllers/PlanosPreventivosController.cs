@@ -7,13 +7,13 @@ namespace ADSync.Api.Controllers;
 
 [ApiController]
 [Route("api/planos-preventivos")]
-[Authorize]
+[Authorize(Roles = "Gestor,Tecnico")]
 public class PlanosPreventivosController : ControllerBase
 {
     private readonly IPlanoPreventivoService _service;
     public PlanosPreventivosController(IPlanoPreventivoService service) => _service = service;
 
-    // GET /api/planos-preventivos?equipamentoId=...  -> qualquer usuário logado consulta
+    // GET /api/planos-preventivos?equipamentoId=... -> Gestor ou Técnico consulta
     [HttpGet]
     public async Task<ActionResult<List<PlanoPreventivoDto>>> Listar(
         [FromQuery] Guid? equipamentoId, [FromQuery] bool incluirInativos = false)

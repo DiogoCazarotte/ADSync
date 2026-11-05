@@ -1,7 +1,232 @@
-﻿@page "/"
+@page "/"
+@using ADSync.Application.DTOs
+@using ADSync.Client.Services
+@inject ManutencaoClient Client
+@implements IDisposable
+<PageTitle>NexService • Manutenção</PageTitle>
+@if (Client.ReadOnlyMode) { <p class="message" role="status">Ambiente somente leitura: abertura de O.S., atendimento e alterações estão indisponíveis neste endereço. As consultas usam dados atuais da API.</p> }
+<fieldset class="workspace" disabled="@Working">
+@if (!ready) { <p role="status">Carregando sessão…</p> }
+else if (Client.Session is null)
+{
+    <section class="login card"><h1>Manutenção organizada</h1><p>Entre para acompanhar os equipamentos.</p>
+        <EditForm Model="login" OnValidSubmit="Login"><DataAnnotationsValidator /><ValidationSummary />
+            <label>E-mail<InputText type="email" @bind-Value="login.Email" autocomplete="username" /></label>
+            <label>Senha<InputText type="password" @bind-Value="login.Senha" autocomplete="current-password" /></label>
+            <button disabled="@Working">Entrar</button>
+        </EditForm>
+    </section>
+}
+else
+{
+    <div class="toolbar"><span>@Client.Session.Nome • @string.Join(", ", Client.Session.Papeis)</span><button disabled="@Working" @onclick="Logout">Sair</button></div>
+    <p role="status">@ProfileDescription</p>
+    <nav aria-label="Áreas">
+        @foreach (var item in Areas) { <button disabled="@Working" class="@(area == item ? "selected" : "")" @onclick="() => Switch(item)">@item</button> }
+    </nav>
+    <div class="toolbar"><span role="status">@Client.Pending pendência(s) no dispositivo</span><button disabled="@(Working || Client.ReadOnlyMode)" @onclick="Sync">Tentar sincronizar</button><button disabled="@Working" @onclick="Refresh">Atualizar consultas</button></div>
+    @if (Client.TechnicalOfflineEnabled && Client.Role("Tecnico"))
+    {
+        <p role="status">@Client.PreparationNotice</p>
+        <p>Os atendimentos são baixados automaticamente com conexão. Alterações feitas sem rede ficam neste navegador até a confirmação do servidor.</p>
+    }
+    @if (area == "Ordens de serviço")
+    {
+        <h1>Ordens de serviço</h1>
+        <p>@OrderDescription</p>
+        @if (!Client.ReadOnlyMode && (Client.Role("Operador") || Client.Role("Gestor")))
+        {
+            <details class="card"><summary>Abrir chamado</summary>
+                <p>Ao receber o chamado, o sistema atribui o técnico ativo com menos ordens pendentes. Se não houver técnico ativo, o gestor poderá atribuir um responsável depois.</p>
+                <EditForm Model="draft" OnValidSubmit="Open"><DataAnnotationsValidator /><ValidationSummary />
+                    <label>Equipamento<InputSelect aria-label="Equipamento" @bind-Value="draft.EquipamentoId"><option value="@Guid.Empty">Selecione</option>@foreach(var e in equipment) { <option value="@e.Id">@e.Nome</option> }</InputSelect></label>
+                    <label>Descrição do problema<InputTextArea @bind-Value="draft.DescricaoProblema" /></label>
+                    <label>Criticidade<InputSelect aria-label="Criticidade" @bind-Value="draft.Prioridade">@foreach(var p in priorities) { <option>@p</option> }</InputSelect></label>
+                    <button disabled="@Working">Salvar chamado</button><p>Somente a abertura fica na fila offline. Mantenha o aplicativo aberto para sincronizar.</p>
+                </EditForm>
+            </details>
+        }
+        <div class="filters"><label>Buscar equipamento ou número<input @bind="search" @bind:event="oninput" /></label>
+            <label>Situação<select aria-label="Situação" @bind="status"><option value="">Todas</option>@foreach(var s in statuses) { <option>@s</option> }</select></label>
+            <label>Prioridade<select aria-label="Prioridade" @bind="priority"><option value="">Todas</option>@foreach(var p in priorities) { <option>@p</option> }</select></label>
+        </div>
+        @if (!Filtered.Any()) { <p>Nenhuma ordem disponível nos filtros atuais.</p> }
+        @foreach(var order in Filtered)
+        {
+            <article class="card"><div class="toolbar"><strong>@order.NumeroOS • @order.EquipamentoNome</strong><span class="badge">@order.Prioridade • @order.Status</span></div><p>@order.DescricaoProblema</p><p>@order.DataAbertura.ToLocalTime().ToString("g") • Responsável: @(order.TecnicoNome ?? "A definir")</p><button disabled="@Working" @onclick="() => Detail(order.Id)">Ver detalhes</button></article>
+        }
+        @if (detail is not null)
+        {
+            <section class="card" aria-label="Detalhes da ordem"><h2>@detail.NumeroOS • @detail.EquipamentoNome</h2><p>@detail.Status • @detail.Setor • Solicitante: @detail.OperadorNome</p><p>Responsável: @(detail.TecnicoNome ?? "A definir")</p><p>Trabalho ativo: @detail.TempoAtendimentoMinutos.ToString("N1") min (desconta pausas)</p>
+                @if (Client.HasPending(detail.Id)) { <p class="message" role="status">Atendimento salvo no dispositivo — pendente de sincronização. Status e estoque locais aguardam validação do servidor.</p> }
+                <p>Diagnóstico: @(detail.CausaFalha ?? "—") • @(detail.ObservacoesTecnicas ?? "—")</p>
+                @foreach(var r in detail.Registros) { <p>@r.Timestamp.ToLocalTime().ToString("g") • @r.Tipo • @r.MotivoPausa</p> }
+                @foreach(var p in detail.Pecas) { <p>@p.Nome • @p.Quantidade unidade(s)</p> }
+                @if (!Client.ReadOnlyMode && Client.Role("Gestor"))
+                {
+                    <label>Técnico<select aria-label="Técnico" @bind="technician"><option value="@Guid.Empty">Selecione</option>@foreach(var t in technicians) { <option value="@t.Id">@t.Nome</option> }</select></label><button disabled="@Working" @onclick='() => Action("atribuir", new AtribuirTecnicoDto { TecnicoId = technician })'>Atribuir técnico</button>
+                }
+                @if (!Client.ReadOnlyMode && Client.Role("Tecnico") && detail.Status is not ("Concluida" or "Cancelada"))
+                {
+                    <h3>Atendimento técnico</h3>
+                    <p>@(detail.Status == "Aberta" ? "Inicie o atendimento para registrar peças, pausar ou concluir." : detail.Status == "Pausada" ? "Atendimento pausado. Retome para concluir; você pode registrar peças durante a pausa." : "Atendimento em andamento. Para pausar, informe o motivo abaixo.")</p>
+                    <button disabled="@(Working || detail.Status != "Aberta")" @onclick='() => Action("iniciar", new EventoTempoDto())'>Iniciar</button>
+                    <label>Motivo da pausa<input disabled="@(Working || detail.Status != "EmAndamento")" @bind="pause" @bind:event="oninput" /></label>
+                    <button disabled="@(Working || detail.Status != "EmAndamento" || string.IsNullOrWhiteSpace(pause))" @onclick='() => Action("pausar", new PausarOrdemServicoDto { Motivo = pause })'>Pausar</button>
+                    <button disabled="@(Working || detail.Status != "Pausada")" @onclick='() => Action("retomar", new EventoTempoDto())'>Retomar</button>
+                    <label>Peça<select aria-label="Peça" @bind="part"><option value="@Guid.Empty">Selecione</option>@foreach(var p in parts) { <option value="@p.Id">@p.Nome (estoque @p.QuantidadeEstoque)</option> }</select></label>
+                    <label>Quantidade<input type="number" min="1" @bind="quantity" /></label><button disabled="@(Working || detail.Status is not ("EmAndamento" or "Pausada") || part == Guid.Empty || quantity < 1)" @onclick='() => Action("pecas", new RegistrarPecaDto { PecaId = part, Quantidade = quantity })'>Registrar peça</button>
+                    <label>Causa da falha<select aria-label="Causa da falha" @bind="cause"><option value="@Guid.Empty">Selecione</option>@foreach(var c in causes) { <option value="@c.Id">@c.Descricao</option> }</select></label><label>Observações<textarea @bind="observations"></textarea></label><button disabled="@(Working || detail.Status != "EmAndamento" || cause == Guid.Empty)" @onclick='() => Action("concluir", new ConcluirOrdemServicoDto { CausaFalhaId = cause, ObservacoesTecnicas = observations })'>Concluir</button>
+                    @if (!Client.TechnicalOfflineEnabled) { <p>Estas ações exigem conexão. Em caso de resposta perdida, consulte a ordem e o estoque antes de repetir.</p> }
+                }
+            </section>
+        }
+    }
+    else if(area == "Usuários" && Client.Role("Gestor"))
+    {
+        <Usuarios OnSaved="Load" />
+    }
+    else if(area == "Cadastros" && Client.Role("Gestor"))
+    {
+        <Cadastros OnSaved="Load" />
+    }
+    else if(area == "Equipamentos e peças" && (Client.Role("Gestor") || Client.Role("Tecnico")))
+    {
+        <h1>Equipamentos e peças</h1>
+        @foreach(var e in equipment) { <article class="card"><h2>@e.Nome</h2><p>@e.CodigoPatrimonio • @e.Setor</p><h3>Histórico disponível para seu perfil</h3>@foreach(var o in orders.Where(o => o.EquipamentoNome == e.Nome)) { <p>@o.NumeroOS • @o.Status • @o.DescricaoProblema</p> }</article> }
+        <h2>Estoque</h2>@foreach(var p in parts) { <article class="card">@p.Codigo • @p.Nome • @p.QuantidadeEstoque unidade(s) @(p.Critica ? "• Crítica" : "")</article> }
+    }
+    else if(area == "Preventivas" && (Client.Role("Gestor") || Client.Role("Tecnico")))
+    {
+        <h1>Preventivas</h1>
+        @if(!Client.ReadOnlyMode && Client.Role("Gestor"))
+        {
+            <details class="card"><summary>Criar plano preventivo</summary><EditForm Model="plan" OnValidSubmit="CreatePlan"><DataAnnotationsValidator /><ValidationSummary />
+                <label>Equipamento<InputSelect aria-label="Equipamento" @bind-Value="plan.EquipamentoId"><option value="@Guid.Empty">Selecione</option>@foreach(var e in equipment) { <option value="@e.Id">@e.Nome</option> }</InputSelect></label>
+                <label>Técnico responsável<InputSelect aria-label="Técnico responsável" @bind-Value="plan.TecnicoResponsavelId"><option value="@Guid.Empty">Selecione</option>@foreach(var t in technicians) { <option value="@t.Id">@t.Nome</option> }</InputSelect></label>
+                <label>Tarefa<InputTextArea @bind-Value="plan.Descricao" /></label><label>Periodicidade (dias)<InputNumber @bind-Value="plan.PeriodicidadeDias" /></label><label>Primeira execução<InputDate @bind-Value="plan.ProximaExecucao" /></label><button disabled="@Working">Criar plano</button>
+            </EditForm></details>
+        }
+        @foreach(var p in plans) { <article class="card"><h2>@p.EquipamentoNome</h2><p>@p.Descricao</p><p>@p.TecnicoResponsavelNome • a cada @p.PeriodicidadeDias dias • próxima: @p.ProximaExecucao.ToString("d")</p></article> }
+    }
+    else if(area == "Indicadores" && Client.Role("Gestor"))
+    {
+        <h1>Indicadores</h1><div class="filters"><label>De<input type="date" @bind="start" /></label><label>Até<input type="date" @bind="end" /></label><button disabled="@Working" @onclick="Indicators">Consultar período</button></div>
+        @if(indicators is not null)
+        {
+            <article class="card"><h2>Resumo</h2><p>Concluídas: @indicators.Geral.TotalConcluidas • Preventivas: @indicators.Geral.TotalPreventivas • Corretivas: @indicators.Geral.TotalCorretivas</p><p>Preventivas: @Number(indicators.Geral.PercentualPreventiva) %</p><p>MTTR (trabalho ativo): @Number(indicators.Geral.MttrMinutos) min</p><p>Intervalo médio entre chamados: @Number(indicators.Geral.MtbfDias) dias</p></article>
+            @foreach(var s in indicators.PorSetor) { <article class="card"><h2>@s.Setor</h2><p>Concluídas: @s.TotalConcluidas • Preventivas: @Number(s.PercentualPreventiva) % • MTTR: @Number(s.MttrMinutos) min • Intervalo: @Number(s.MtbfDias) dias</p></article> }
+        }
+        <p>“—” significa ausência de dados. O intervalo usa aberturas de corretivas, não horas reais de operação. MTTR desconta pausas e não representa toda a indisponibilidade.</p>
+    }
+}
+</fieldset>
+@if (Working) { <p role="status">Processando…</p> }
+@if (!string.IsNullOrEmpty(message)) { <p role="alert" class="message">@message</p> }
+@if (!string.IsNullOrEmpty(Client.Notice)) { <p role="status" class="message">@Client.Notice</p> }
 
-<PageTitle>Home</PageTitle>
-
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+@code {
+    bool ready, working;
+    bool Working => working;
+    string ProfileDescription => Client.Role("Gestor")
+        ? "Gestor de manutenção: acompanhe todas as ordens, ajuste a atribuição automática dos técnicos e gerencie cadastros e indicadores."
+        : Client.Role("Tecnico")
+            ? "Técnico de manutenção: abra os detalhes de uma ordem atribuída a você para iniciar, pausar, retomar e concluir o atendimento, registrando peças e causa da falha."
+            : Client.Role("Operador")
+                ? "Operador de produção: use Abrir chamado para registrar uma nova O.S. e acompanhe as solicitações que você abriu."
+                : "Perfil sem acesso às operações de manutenção. Procure o gestor.";
+    string OrderDescription => Client.Role("Gestor") ? "Todas as ordens de serviço da equipe."
+        : Client.Role("Tecnico") ? "Seus atendimentos: somente ordens atribuídas a você. Se a lista estiver vazia, solicite a atribuição ao gestor."
+        : "Suas solicitações: somente ordens que você abriu.";
+    string area = "Ordens de serviço", message = "", search = "", status = "", priority = "", pause = "", observations = "";
+    string[] priorities = ["Critica", "Alta", "Media", "Baixa"], statuses = ["Aberta", "EmAndamento", "Pausada", "Concluida", "Cancelada"];
+    IEnumerable<string> Areas => Client.Role("Gestor") ? ["Ordens de serviço", "Indicadores", "Preventivas", "Equipamentos e peças", "Cadastros", "Usuários"]
+        : Client.Role("Tecnico") ? ["Ordens de serviço", "Preventivas", "Equipamentos e peças"]
+        : ["Ordens de serviço"];
+    LoginDto login = new(); CriarOrdemServicoDto draft = new();
+    SalvarPlanoPreventivoDto plan = new() { PeriodicidadeDias = 30, ProximaExecucao = DateOnly.FromDateTime(DateTime.Today.AddDays(1)) };
+    List<OrdemServicoDto> orders = []; List<EquipamentoDto> equipment = []; List<PecaDto> parts = []; List<UsuarioDto> technicians = []; List<CausaFalhaDto> causes = []; List<PlanoPreventivoDto> plans = [];
+    OrdemServicoDetalheDto? detail; IndicadoresDto? indicators;
+    Guid technician, part, cause; int quantity = 1;
+    DateTime start = DateTime.Today.AddDays(-30), end = DateTime.Today;
+    IEnumerable<OrdemServicoDto> Filtered => orders.Where(o => (o.EquipamentoNome.Contains(search, StringComparison.OrdinalIgnoreCase) || o.NumeroOS.Contains(search, StringComparison.OrdinalIgnoreCase)) && (status == "" || o.Status == status) && (priority == "" || o.Prioridade == priority)).OrderBy(o => Array.IndexOf(priorities, o.Prioridade)).ThenByDescending(o => o.DataAbertura);
+    static string Number(double? n) => n?.ToString("N1") ?? "—";
+    protected override async Task OnInitializedAsync()
+    {
+        Client.Changed += Changed;
+        await Run(async () => { await Client.InitializeAsync(); if(Client.Session is not null) await Load(); });
+        ready = true;
+    }
+    void Changed() => _ = InvokeAsync(() =>
+    {
+        if (Client.TechnicalOfflineEnabled && detail is not null && Client.LocalDetail(detail.Id) is { } updated)
+        {
+            detail = updated;
+            if (!Client.HasPending(updated.Id) && message == "Ação salva no dispositivo; aguardando sincronização.") message = "Ação confirmada pelo servidor.";
+            var summary = orders.FirstOrDefault(o => o.Id == updated.Id);
+            if (summary is not null) { summary.Status = updated.Status; summary.DataConclusao = updated.DataConclusao; }
+        }
+        StateHasChanged();
+    });
+    async Task Run(Func<Task> action)
+    {
+        if(working) return;
+        working = true; message = "";
+        try { await action(); } catch(Exception ex) { message = ex.Message; }
+        finally { working = false; }
+    }
+    async Task Load()
+    {
+        orders = await Client.GetAsync<List<OrdemServicoDto>>("api/ordensservico?minhas=true");
+        equipment = await Client.GetAsync<List<EquipamentoDto>>("api/equipamentos");
+        if (Client.Role("Gestor") || Client.Role("Tecnico"))
+        {
+            parts = await Client.GetAsync<List<PecaDto>>("api/pecas");
+            causes = await Client.GetAsync<List<CausaFalhaDto>>("api/causas-falha");
+            plans = await Client.GetAsync<List<PlanoPreventivoDto>>("api/planos-preventivos");
+        }
+        else { parts = []; causes = []; plans = []; }
+        if(Client.Role("Gestor")) technicians = await Client.GetAsync<List<UsuarioDto>>("api/usuarios?tipo=Tecnico");
+        if (Client.TechnicalOfflineEnabled && Client.Role("Tecnico"))
+        {
+            orders = await Client.OverlayTechnicalAsync(orders);
+            parts = await Client.TechnicalStockAsync(parts);
+            Client.PrepareInBackground();
+        }
+    }
+    Task Login() => Run(async () => { await Client.LoginAsync(login); login = new(); await Load(); });
+    Task Logout() => Run(async () => { await Client.LogoutAsync(); orders = []; equipment = []; parts = []; technicians = []; causes = []; plans = []; detail = null; indicators = null; draft = new(); plan = new() { PeriodicidadeDias = 30, ProximaExecucao = DateOnly.FromDateTime(DateTime.Today.AddDays(1)) }; technician = part = cause = Guid.Empty; observations = pause = search = status = priority = ""; area = "Ordens de serviço"; });
+    Task Refresh() => Run(Load);
+    Task Sync() => Run(async () => { await Client.SyncAsync(); await Load(); });
+    Task Switch(string next) => Run(async () => { area = next; if(next == "Indicadores") await LoadIndicators(); });
+    Task Open() => Run(async () => { if(draft.EquipamentoId == Guid.Empty || string.IsNullOrWhiteSpace(draft.DescricaoProblema)) throw new InvalidOperationException("Informe equipamento e descrição."); await Client.OpenAsync(draft); draft = new(); message = "Chamado salvo no dispositivo. Confira as pendências de envio."; if(Client.Pending == 0) await Load(); });
+    Task Detail(Guid id) => Run(async () => { detail = Client.TechnicalOfflineEnabled && Client.Role("Tecnico")
+        ? await Client.TechnicalDetailAsync(id) : await Client.GetOnlineAsync<OrdemServicoDetalheDto>($"api/ordensservico/{id}"); pause = observations = ""; part = cause = Guid.Empty; quantity = 1; });
+    Task Action(string action, object body) => Run(async () =>
+    {
+        detail = Client.TechnicalOfflineEnabled && Client.Role("Tecnico")
+            ? await Client.RecordTechnicalAsync(detail!.Id, action, body)
+            : await Client.PostAsync<OrdemServicoDetalheDto>($"api/ordensservico/{detail!.Id}/{action}", body);
+        var summary = orders.FirstOrDefault(o => o.Id == detail.Id);
+        if (summary is not null)
+        {
+            summary.Status = detail.Status;
+            summary.TecnicoNome = detail.TecnicoNome;
+            summary.DataConclusao = detail.DataConclusao;
+        }
+        if (action == "pausar") pause = "";
+        message = Client.HasPending(detail.Id) ? "Ação salva no dispositivo; aguardando sincronização." : "Ação confirmada pelo servidor.";
+        // A resposta já contém o estado atualizado da O.S.; não bloqueia a tela
+        // recarregando todos os cadastros depois de cada evento do atendimento.
+        if (action == "pecas")
+        {
+            var used = parts.FirstOrDefault(p => p.Id == part);
+            if (used is not null) used.QuantidadeEstoque -= quantity;
+            part = Guid.Empty; quantity = 1;
+        }
+    });
+    Task CreatePlan() => Run(async () => { await Client.PostAsync<PlanoPreventivoDto>("api/planos-preventivos", plan); message = "Plano criado."; await Load(); });
+    Task Indicators() => Run(LoadIndicators);
+    async Task LoadIndicators() => indicators = await Client.GetAsync<IndicadoresDto>($"api/indicadores?dataInicio={start:yyyy-MM-dd}&dataFim={end:yyyy-MM-dd}");
+    public void Dispose() => Client.Changed -= Changed;
+}

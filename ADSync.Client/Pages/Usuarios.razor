@@ -1,0 +1,98 @@
+@using ADSync.Application.DTOs
+@using ADSync.Domain.Enums
+@using ADSync.Client.Services
+@inject ManutencaoClient Client
+
+@if (Client.Role("Gestor"))
+{
+    <h1>Usuários</h1>
+    <p>Gerencie o acesso de operadores, técnicos e gestores.</p>
+    @if (Client.ReadOnlyMode) { <p role="status">Somente leitura: alterações de usuários desativadas.</p> }
+    <label>Buscar usuários<input @bind="search" @bind:event="oninput" /></label>
+    <button type="button" disabled="@Busy" @onclick="Refresh">Atualizar usuários</button>
+    @if (error.Length > 0) { <p role="alert">@error</p> }
+    @if (message.Length > 0) { <p role="status">@message</p> }
+    @if (!Client.ReadOnlyMode)
+    {
+        <EditForm Model="draft" OnValidSubmit="Save" @key="draft">
+            <DataAnnotationsValidator /><ValidationSummary />
+            <fieldset class="card" disabled="@Busy">
+                <legend>@(editing is null ? "Novo usuário" : "Editar usuário")</legend>
+                <label>Nome<InputText @bind-Value="draft.Nome" /></label>
+                <label>E-mail do usuário<InputText type="email" autocomplete="off" @bind-Value="draft.Email" /></label>
+                <label>Perfil<InputSelect aria-label="Perfil" @bind-Value="draft.TipoUsuario">
+                    <option value="@TipoUsuario.Operador">Operador</option>
+                    <option value="@TipoUsuario.Tecnico">Técnico</option>
+                    <option value="@TipoUsuario.Gestor">Gestor</option>
+                </InputSelect></label>
+                @if (draft is CriarUsuarioDto create)
+                {
+                    <label>Senha inicial<InputText type="password" autocomplete="new-password" @bind-Value="create.Senha" /></label>
+                    <p>Use ao menos 8 caracteres, com maiúscula, minúscula, número e símbolo.</p>
+                }
+                <button type="submit">Salvar usuário</button>
+                <button type="button" @onclick="Reset">Cancelar edição</button>
+            </fieldset>
+        </EditForm>
+    }
+    @if (loading) { <p role="status">Carregando usuários…</p> }
+    else if (!Filtered.Any()) { <p>Nenhum usuário encontrado.</p> }
+    @foreach (var user in Filtered)
+    {
+        <article class="card" @key="user.Id">
+            <h2>@user.Nome</h2>
+            <p>@user.Email • @(user.TipoUsuario == "Tecnico" ? "Técnico" : user.TipoUsuario) • @(user.Ativo ? "Ativo" : "Inativo")</p>
+            @if (!Client.ReadOnlyMode)
+            {
+                <button type="button" disabled="@Busy" @onclick="() => Edit(user)">Editar usuário</button>
+                <button type="button" disabled="@Busy" @onclick="() => Toggle(user)">@(user.Ativo ? "Desativar usuário" : "Ativar usuário")</button>
+            }
+        </article>
+    }
+}
+
+@code {
+    [Parameter] public EventCallback OnSaved { get; set; }
+    List<UsuarioDto> users = [];
+    SalvarUsuarioDto draft = new CriarUsuarioDto();
+    Guid? editing;
+    string search = "", error = "", message = "";
+    bool working, loading;
+    bool Busy => working;
+    IEnumerable<UsuarioDto> Filtered => users.Where(u => $"{u.Nome} {u.Email} {u.TipoUsuario}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+    protected override Task OnInitializedAsync() => Refresh();
+    async Task Load()
+    {
+        loading = true;
+        try { users = await Client.GetOnlineAsync<List<UsuarioDto>>("api/usuarios?incluirInativos=true"); }
+        finally { loading = false; }
+    }
+    async Task Run(Func<Task> action)
+    {
+        if (working || !Client.Role("Gestor")) return;
+        working = true; error = ""; message = "";
+        try { await action(); }
+        catch (Exception ex) { error = ex.Message; }
+        finally { working = false; }
+    }
+    Task Refresh() => Run(Load);
+    void Reset() { editing = null; draft = new CriarUsuarioDto(); }
+    void Edit(UsuarioDto u)
+    {
+        editing = u.Id;
+        draft = new SalvarUsuarioDto { Nome = u.Nome, Email = u.Email, TipoUsuario = Enum.Parse<TipoUsuario>(u.TipoUsuario) };
+    }
+    Task Save() => Run(async () =>
+    {
+        if (editing is Guid id) await Client.PutAsync<UsuarioDto>($"api/usuarios/{id}", draft);
+        else await Client.PostAsync<UsuarioDto>("api/usuarios", draft);
+        Reset(); message = "Usuário salvo.";
+        await Load(); await OnSaved.InvokeAsync();
+    });
+    Task Toggle(UsuarioDto u) => Run(async () =>
+    {
+        await Client.PutAsync<UsuarioDto>($"api/usuarios/{u.Id}/situacao", new SituacaoUsuarioDto { Ativo = !u.Ativo });
+        message = u.Ativo ? "Usuário desativado." : "Usuário ativado.";
+        await Load(); await OnSaved.InvokeAsync();
+    });
+}

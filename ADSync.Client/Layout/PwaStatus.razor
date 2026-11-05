@@ -1,0 +1,45 @@
+@using ADSync.Client.Services
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@inject ManutencaoClient Client
+@implements IAsyncDisposable
+
+<aside class="pwa-status" aria-label="Conexão e instalação">
+    <span role="status">@(online ? "Conectado" : "Sem conexão") · @(offlineReady ? "Aplicativo disponível offline" : "Aplicativo offline ainda não está pronto")</span>
+    @if (canInstall && !installed)
+    {
+        <button type="button" @onclick="Install">Instalar NexService</button>
+    }
+    else if (!installed)
+    {
+        <details><summary>Instalar no dispositivo</summary><p>No menu do navegador, escolha “Instalar aplicativo” ou “Adicionar à tela inicial”. No iPhone/iPad, use Compartilhar → Adicionar à Tela de Início.</p></details>
+    }
+    @if (updateReady) { <p>Nova versão disponível. Após sincronizar as pendências, feche todas as janelas do NexService e abra novamente.</p> }
+</aside>
+
+@code {
+    bool online = true, canInstall, installed, offlineReady, updateReady;
+    DotNetObjectReference<PwaStatus>? reference;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        reference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("nexPwa.connect", reference);
+    }
+    [JSInvokable] public Task PwaChanged(bool isOnline, bool installable, bool isInstalled, bool ready, bool update)
+    {
+        online = isOnline; canInstall = installable; installed = isInstalled; offlineReady = ready; updateReady = update;
+        return InvokeAsync(StateHasChanged);
+    }
+    [JSInvokable] public Task ConnectionRestored()
+    {
+        _ = Client.ReconnectAsync();
+        return Task.CompletedTask;
+    }
+    async Task Install() => await JS.InvokeVoidAsync("nexPwa.install");
+    public async ValueTask DisposeAsync()
+    {
+        await JS.InvokeVoidAsync("nexPwa.disconnect");
+        reference?.Dispose();
+    }
+}

@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Local demo and browser artifacts
+.local-demo/
+node_modules/
+tests/artifacts/

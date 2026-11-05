@@ -35,9 +35,15 @@ async function onActivate(event) {
     await Promise.all(cacheKeys
         .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName)
         .map(key => caches.delete(key)));
+    // Primeira instalação passa a proteger a janela atual sem exigir uma recarga.
+    await self.clients.claim();
 }
 
 async function onFetch(event) {
+    // API e métodos de escrita nunca recebem fallback para o HTML da aplicação.
+    const url = new URL(event.request.url);
+    if (event.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/'))
+        return fetch(event.request);
     let cachedResponse = null;
     if (event.request.method === 'GET') {
         // For all navigation requests, try to serve index.html from cache,

@@ -24,6 +24,9 @@ public interface IOrdemServicoRepository
 
     Task AdicionarAsync(OrdemServico ordemServico);
 
+    // Escolhe técnico e grava a nova ordem na mesma transação, serializando aberturas concorrentes.
+    Task<OrdemServico> AdicionarComAtribuicaoAsync(OrdemServico ordemServico);
+
     // Grava TUDO que está rastreado no contexto de uma vez só, numa única transação.
     // É por isso que a baixa de estoque e o registro da peça na O.S. são atômicos.
     Task<bool> SalvarAlteracoesAsync();

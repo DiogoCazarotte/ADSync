@@ -1,0 +1,198 @@
+@using ADSync.Application.DTOs
+@using ADSync.Client.Services
+@inject ManutencaoClient Client
+
+@if (Client.Role("Gestor"))
+{
+    <h1>Cadastros</h1>
+    <p>Gerencie equipamentos, peças e causas de falha.</p>
+    @if (Client.ReadOnlyMode) { <p role="status">Consulta disponível. Para gravar, o ambiente precisa estar autorizado e configurado para escrita.</p> }
+    <label>Buscar nos cadastros<input @bind="search" @bind:event="oninput" /></label>
+    <button type="button" @onclick="Refresh" disabled="@Busy">Atualizar cadastros</button>
+    @if (message.Length > 0) { <p class="message" role="status">@message</p> }
+    @if (error.Length > 0) { <p class="message" role="alert">@error</p> }
+    @if (loading) { <p role="status">Carregando cadastros…</p> }
+
+    <section class="card">
+        <h2>Equipamentos</h2>
+        @if (!Client.ReadOnlyMode)
+        {
+            <EditForm Model="equipmentDraft" OnValidSubmit="SaveEquipment">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <fieldset class="workspace" disabled="@Busy">
+                    <legend>@(equipmentId is null ? "Novo equipamento" : "Editar equipamento")</legend>
+                    <label>Nome<InputText @bind-Value="equipmentDraft.Nome" /></label>
+                    <label>Código de patrimônio<InputText @bind-Value="equipmentDraft.CodigoPatrimonio" /></label>
+                    <label>Setor<InputText @bind-Value="equipmentDraft.Setor" /></label>
+                    <button type="submit">Salvar equipamento</button>
+                    <button type="button" @onclick="ResetEquipment">Cancelar</button>
+                </fieldset>
+            </EditForm>
+        }
+        @if (!equipment.Any(e => Match(e.Nome, e.CodigoPatrimonio, e.Setor))) { <p>Nenhum equipamento encontrado.</p> }
+        @foreach (var e in equipment.Where(e => Match(e.Nome, e.CodigoPatrimonio, e.Setor)))
+        {
+            <article class="card" @key="e.Id">
+                <h3>@e.Nome</h3><p>@e.CodigoPatrimonio • @e.Setor • @(e.Ativo ? "Ativo" : "Inativo")</p>
+                @if (!Client.ReadOnlyMode)
+                {
+                    <button type="button" disabled="@Busy" @onclick="() => Edit(e)">Editar equipamento</button>
+                    <button type="button" disabled="@Busy" @onclick='() => Toggle($"api/equipamentos/{e.Id}", e.Ativo, true)'>@(e.Ativo ? "Inativar" : "Ativar")</button>
+                }
+            </article>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Peças e estoque</h2>
+        @if (!Client.ReadOnlyMode)
+        {
+            <EditForm Model="partDraft" OnValidSubmit="SavePart">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <fieldset class="workspace" disabled="@Busy">
+                    <legend>@(partId is null ? "Nova peça" : "Editar peça")</legend>
+                    <label>Código<InputText @bind-Value="partDraft.Codigo" /></label>
+                    <label>Nome<InputText @bind-Value="partDraft.Nome" /></label>
+                    @if (partId is null) { <label>Quantidade inicial<InputNumber @bind-Value="partDraft.QuantidadeInicial" /></label> }
+                    <label>Peça crítica<InputCheckbox @bind-Value="partDraft.Critica" /></label>
+                    <button type="submit">Salvar peça</button><button type="button" @onclick="ResetPart">Cancelar</button>
+                </fieldset>
+            </EditForm>
+        }
+        @if (!parts.Any(p => Match(p.Nome, p.Codigo))) { <p>Nenhuma peça encontrada.</p> }
+        @foreach (var p in parts.Where(p => Match(p.Nome, p.Codigo)))
+        {
+            <article class="card" @key="p.Id">
+                <h3>@p.Codigo • @p.Nome</h3><p>@p.QuantidadeEstoque unidade(s) @(p.Critica ? "• Crítica" : "")</p>
+                @if (!Client.ReadOnlyMode)
+                {
+                    <button type="button" disabled="@Busy" @onclick="() => Edit(p)">Editar peça</button>
+                    <button type="button" disabled="@Busy" @onclick="() => BeginStock(p.Id)">Entrada de estoque</button>
+                    @if (stockId == p.Id)
+                    {
+                        <EditForm Model="stockDraft" OnValidSubmit="SaveStock">
+                            <DataAnnotationsValidator /><ValidationSummary />
+                            <fieldset class="workspace" disabled="@Busy">
+                                <label>Quantidade recebida<InputNumber @bind-Value="stockDraft.Quantidade" /></label>
+                                <button type="submit">Confirmar entrada</button><button type="button" @onclick="() => stockId = null">Cancelar</button>
+                            </fieldset>
+                        </EditForm>
+                    }
+                }
+            </article>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Causas de falha</h2>
+        @if (!Client.ReadOnlyMode)
+        {
+            <EditForm Model="causeDraft" OnValidSubmit="SaveCause">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <fieldset class="workspace" disabled="@Busy">
+                    <legend>@(causeId is null ? "Nova causa de falha" : "Editar causa de falha")</legend>
+                    <label>Descrição<InputText @bind-Value="causeDraft.Descricao" /></label>
+                    <button type="submit">Salvar causa</button><button type="button" @onclick="ResetCause">Cancelar</button>
+                </fieldset>
+            </EditForm>
+        }
+        @if (!causes.Any(c => Match(c.Descricao))) { <p>Nenhuma causa de falha encontrada.</p> }
+        @foreach (var c in causes.Where(c => Match(c.Descricao)))
+        {
+            <article class="card" @key="c.Id">
+                <h3>@c.Descricao</h3><p>@(c.Ativo ? "Ativa" : "Inativa")</p>
+                @if (!Client.ReadOnlyMode)
+                {
+                    <button type="button" disabled="@Busy" @onclick="() => Edit(c)">Editar causa</button>
+                    <button type="button" disabled="@Busy" @onclick='() => Toggle($"api/causas-falha/{c.Id}", c.Ativo, false)'>@(c.Ativo ? "Inativar" : "Ativar")</button>
+                }
+            </article>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public EventCallback OnSaved { get; set; }
+    List<EquipamentoDto> equipment = [];
+    List<PecaDto> parts = [];
+    List<CausaFalhaDto> causes = [];
+    SalvarEquipamentoDto equipmentDraft = new();
+    CriarPecaDto partDraft = new();
+    SalvarCausaFalhaDto causeDraft = new();
+    EntradaEstoqueDto stockDraft = new() { Quantidade = 1 };
+    Guid? equipmentId, partId, causeId, stockId;
+    string search = "", message = "", error = "";
+    bool working, loading;
+    bool Busy => working;
+    bool Match(params string[] values) => values.Any(v => v.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+    protected override Task OnInitializedAsync() => Refresh();
+    async Task Load()
+    {
+        loading = true;
+        try
+        {
+            var nextEquipment = await Client.GetAsync<List<EquipamentoDto>>("api/equipamentos?incluirInativos=true");
+            var nextParts = await Client.GetAsync<List<PecaDto>>("api/pecas");
+            var nextCauses = await Client.GetAsync<List<CausaFalhaDto>>("api/causas-falha?incluirInativos=true");
+            equipment = nextEquipment; parts = nextParts; causes = nextCauses;
+        }
+        finally { loading = false; }
+    }
+    async Task Run(Func<Task> action, bool mutation = false)
+    {
+        if (working || !Client.Role("Gestor")) return;
+        working = true; error = ""; message = "";
+        try
+        {
+            if (mutation && Client.ReadOnlyMode) throw new InvalidOperationException("Gravações desativadas no modo somente leitura.");
+            await action();
+        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { working = false; }
+    }
+    Task Refresh() => Run(Load);
+    async Task Saved()
+    {
+        message = "Alteração confirmada pelo servidor.";
+        await Load();
+        await OnSaved.InvokeAsync();
+    }
+    void ResetEquipment() { equipmentId = null; equipmentDraft = new(); }
+    void ResetPart() { partId = null; partDraft = new(); }
+    void ResetCause() { causeId = null; causeDraft = new(); }
+    void Edit(EquipamentoDto e) { equipmentId = e.Id; equipmentDraft = new() { Nome = e.Nome, CodigoPatrimonio = e.CodigoPatrimonio, Setor = e.Setor }; }
+    void Edit(PecaDto p) { partId = p.Id; partDraft = new() { Nome = p.Nome, Codigo = p.Codigo, Critica = p.Critica }; }
+    void Edit(CausaFalhaDto c) { causeId = c.Id; causeDraft = new() { Descricao = c.Descricao }; }
+    void BeginStock(Guid id) { stockId = id; stockDraft = new() { Quantidade = 1 }; }
+    Task SaveEquipment() => Run(async () =>
+    {
+        if (equipmentId is Guid id) await Client.PutAsync<EquipamentoDto>($"api/equipamentos/{id}", equipmentDraft);
+        else await Client.PostAsync<EquipamentoDto>("api/equipamentos", equipmentDraft);
+        ResetEquipment(); await Saved();
+    }, true);
+    Task SavePart() => Run(async () =>
+    {
+        if (partId is Guid id) await Client.PutAsync<PecaDto>($"api/pecas/{id}", new AtualizarPecaDto { Codigo = partDraft.Codigo, Nome = partDraft.Nome, Critica = partDraft.Critica });
+        else await Client.PostAsync<PecaDto>("api/pecas", partDraft);
+        ResetPart(); await Saved();
+    }, true);
+    Task SaveCause() => Run(async () =>
+    {
+        if (causeId is Guid id) await Client.PutAsync<CausaFalhaDto>($"api/causas-falha/{id}", causeDraft);
+        else await Client.PostAsync<CausaFalhaDto>("api/causas-falha", causeDraft);
+        ResetCause(); await Saved();
+    }, true);
+    Task SaveStock() => Run(async () =>
+    {
+        if (stockId is not Guid id) return;
+        await Client.PostAsync<PecaDto>($"api/pecas/{id}/entrada", stockDraft);
+        stockId = null; await Saved();
+    }, true);
+    Task Toggle(string path, bool active, bool isEquipment) => Run(async () =>
+    {
+        var endpoint = $"{path}/{(active ? "inativar" : "ativar")}";
+        if (isEquipment) await Client.PostAsync<EquipamentoDto>(endpoint, new { });
+        else await Client.PostAsync<CausaFalhaDto>(endpoint, new { });
+        await Saved();
+    }, true);
+}

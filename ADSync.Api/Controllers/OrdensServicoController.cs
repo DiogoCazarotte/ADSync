@@ -43,30 +43,24 @@ public class OrdensServicoController : ControllerBase
         return CreatedAtAction(nameof(ObterPorId), new { id = criada.Id }, criada);
     }
 
-    // GET /api/ordensservico/{id}  -> qualquer usuário logado (detalhe completo)
+    // GET /api/ordensservico/{id}: aplica o mesmo escopo da listagem.
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<OrdemServicoDetalheDto>> ObterPorId(Guid id)
     {
-        var os = await _service.ObterDetalheAsync(id);
+        var (tecnicoId, operadorId) = EscopoConsulta();
+        var os = await _service.ObterDetalheAsync(id, tecnicoId, operadorId);
         return os is null ? NotFound() : Ok(os);
     }
 
     // GET /api/ordensservico?status=Aberta&prioridade=Alta&minhas=true
-    // minhas=true: Técnico vê as atribuídas a ele; Operador vê as que ele abriu; Gestor vê todas.
+    // O escopo é obrigatório por perfil, independentemente do parâmetro legado minhas.
     [HttpGet]
     public async Task<ActionResult<List<OrdemServicoDto>>> Listar(
         [FromQuery] StatusOS? status,
         [FromQuery] PrioridadeOS? prioridade,
         [FromQuery] bool minhas = false)
     {
-        Guid? tecnicoId = null;
-        Guid? operadorId = null;
-
-        if (minhas)
-        {
-            if (User.IsInRole("Tecnico")) tecnicoId = UsuarioLogadoId;
-            else if (User.IsInRole("Operador")) operadorId = UsuarioLogadoId;
-        }
+        var (tecnicoId, operadorId) = EscopoConsulta();
 
         var lista = await _service.ListarAsync(status, prioridade, tecnicoId, operadorId);
         return Ok(lista);
@@ -141,6 +135,15 @@ public class OrdensServicoController : ControllerBase
     {
         return Ok(await _service.ConcluirAsync(
             id, UsuarioLogadoId, dto.CausaFalhaId!.Value, dto.ObservacoesTecnicas, dto.OcorridoEm));
+    }
+
+    private (Guid? TecnicoId, Guid? OperadorId) EscopoConsulta()
+    {
+        var id = UsuarioLogadoId;
+        if (User.IsInRole("Gestor")) return (null, null);
+        if (User.IsInRole("Tecnico")) return (id, null);
+        if (User.IsInRole("Operador")) return (null, id);
+        throw new AcessoNegadoException("Perfil sem permissão para consultar ordens de serviço.");
     }
 
     // Lê o Id do usuário a partir do claim "sub" do token

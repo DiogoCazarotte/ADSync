@@ -1,6 +1,7 @@
 using ADSync.Domain.Entities;
 using ADSync.Domain.Enums;
 using ADSync.Domain.Interfaces;
+using ADSync.Domain.Exceptions;
 using ADSync.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -90,6 +91,42 @@ public class OrdemServicoRepository : IOrdemServicoRepository
     public async Task AdicionarAsync(OrdemServico ordemServico)
     {
         await _context.OrdensServico.AddAsync(ordemServico);
+    }
+
+    public async Task<OrdemServico> AdicionarComAtribuicaoAsync(OrdemServico ordemServico)
+    {
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        // Trava transacional compartilhada pelas aberturas desta aplicação. A próxima
+        // abertura considera a carga já gravada pela anterior, inclusive entre instâncias.
+        await _context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(1094996825)");
+
+        if (ordemServico.ClientSyncId is Guid syncId)
+        {
+            var existente = await ObterPorClientSyncIdAsync(syncId);
+            if (existente is not null)
+            {
+                if (existente.OperadorId != ordemServico.OperadorId)
+                    throw new AcessoNegadoException("Identificador de sincronização pertence a outra conta.");
+                await tx.CommitAsync();
+                return existente;
+            }
+        }
+
+        var tecnico = await _context.Usuarios
+            .Where(u => u.Ativo && u.TipoUsuario == TipoUsuario.Tecnico)
+            .OrderBy(u => u.OrdensComoTecnico.Count(os => os.Status == StatusOS.Aberta ||
+                os.Status == StatusOS.EmAndamento || os.Status == StatusOS.Pausada))
+            // Empate: quem não recebeu ordens ou recebeu há mais tempo; depois o Id.
+            .ThenBy(u => u.OrdensComoTecnico.Any() ? 1 : 0)
+            .ThenBy(u => u.OrdensComoTecnico.Max(os => (DateTimeOffset?)os.DataAbertura))
+            .ThenBy(u => u.Id)
+            .FirstOrDefaultAsync();
+
+        if (tecnico is not null) ordemServico.AtribuirTecnico(tecnico);
+        await _context.OrdensServico.AddAsync(ordemServico);
+        await _context.SaveChangesAsync();
+        await tx.CommitAsync();
+        return ordemServico;
     }
 
     public async Task<bool> SalvarAlteracoesAsync()

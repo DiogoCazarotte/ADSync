@@ -67,17 +67,14 @@ public class OrdemServico
         Tecnico = tecnico;
     }
 
-    // Técnico inicia o atendimento. Se a O.S. ainda não tem responsável, ele assume.
+    // Apenas o técnico previamente atribuído pode iniciar o atendimento.
     public void Iniciar(Guid tecnicoId, DateTimeOffset quando)
     {
         if (Status != StatusOS.Aberta)
             throw new RegraNegocioException(
                 $"Só é possível iniciar uma O.S. com status Aberta (status atual: {Status}).");
 
-        if (TecnicoId is null)
-            TecnicoId = tecnicoId;
-        else
-            GarantirResponsavel(tecnicoId);
+        GarantirResponsavel(tecnicoId);
 
         RegistrarEvento(TipoRegistroTempo.Inicio, quando);
         Status = StatusOS.EmAndamento;

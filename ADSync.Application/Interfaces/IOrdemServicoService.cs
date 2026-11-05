@@ -6,7 +6,7 @@ namespace ADSync.Application.Interfaces;
 public interface IOrdemServicoService
 {
     Task<OrdemServicoDto> AbrirAsync(CriarOrdemServicoDto dto);
-    Task<OrdemServicoDetalheDto?> ObterDetalheAsync(Guid id);
+    Task<OrdemServicoDetalheDto?> ObterDetalheAsync(Guid id, Guid? tecnicoId = null, Guid? operadorId = null);
     Task<List<OrdemServicoDto>> ListarAsync(StatusOS? status, PrioridadeOS? prioridade, Guid? tecnicoId, Guid? operadorId);
 
     // Ações do fluxo
