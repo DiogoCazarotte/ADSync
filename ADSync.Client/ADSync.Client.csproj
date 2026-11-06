@@ -18,4 +18,14 @@
   </ItemGroup>
 
   <ItemGroup><ProjectReference Include="..\ADSync.Application\ADSync.Application.csproj" /></ItemGroup>
+
+  <Target Name="BuildFrontendStyles" BeforeTargets="PrepareForBuild"
+          Inputs="Styles/app.css;@(RazorComponent);../package.json;../package-lock.json"
+          Outputs="wwwroot/css/app.css" Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <FrontendNpm Condition="'$(OS)' == 'Windows_NT'">npm.cmd</FrontendNpm>
+      <FrontendNpm Condition="'$(OS)' != 'Windows_NT'">npm</FrontendNpm>
+    </PropertyGroup>
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)/.." Command="$(FrontendNpm) run build:css" />
+  </Target>
 </Project>

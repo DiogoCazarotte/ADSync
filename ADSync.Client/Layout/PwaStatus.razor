@@ -8,16 +8,17 @@
     <span role="status">@(online ? "Conectado" : "Sem conexão") · @(offlineReady ? "Aplicativo disponível offline" : "Aplicativo offline ainda não está pronto")</span>
     @if (canInstall && !installed)
     {
-        <button type="button" @onclick="Install">Instalar NexService</button>
+        <button type="button" @onclick="Install">Instalar ADSync</button>
     }
     else if (!installed)
     {
         <details><summary>Instalar no dispositivo</summary><p>No menu do navegador, escolha “Instalar aplicativo” ou “Adicionar à tela inicial”. No iPhone/iPad, use Compartilhar → Adicionar à Tela de Início.</p></details>
     }
-    @if (updateReady) { <p>Nova versão disponível. Após sincronizar as pendências, feche todas as janelas do NexService e abra novamente.</p> }
+    @if (updateReady) { <p>Nova versão disponível. Após sincronizar as pendências, feche todas as janelas do ADSync e abra novamente.</p> }
 </aside>
 
 @code {
+    [Parameter] public EventCallback<bool> OnlineChanged { get; set; }
     bool online = true, canInstall, installed, offlineReady, updateReady;
     DotNetObjectReference<PwaStatus>? reference;
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -29,7 +30,7 @@
     [JSInvokable] public Task PwaChanged(bool isOnline, bool installable, bool isInstalled, bool ready, bool update)
     {
         online = isOnline; canInstall = installable; installed = isInstalled; offlineReady = ready; updateReady = update;
-        return InvokeAsync(StateHasChanged);
+        return InvokeAsync(async () => { await OnlineChanged.InvokeAsync(isOnline); StateHasChanged(); });
     }
     [JSInvokable] public Task ConnectionRestored()
     {

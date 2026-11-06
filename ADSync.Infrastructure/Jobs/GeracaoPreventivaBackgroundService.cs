@@ -1,4 +1,6 @@
 ﻿using ADSync.Domain.Interfaces;
+using ADSync.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -47,9 +49,13 @@ public class GeracaoPreventivaBackgroundService : BackgroundService
         }
     }
 
-    private async Task GerarPendentesAsync(CancellationToken ct)
+    public async Task<int> GerarPendentesAsync(CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AdSyncDbContext>();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Serializa seleção e gravação entre instâncias da API no mesmo banco.
+        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(1094996826)", ct);
         var repoPlanos = scope.ServiceProvider.GetRequiredService<IPlanoPreventivoRepository>();
         var repoOrdens = scope.ServiceProvider.GetRequiredService<IOrdemServicoRepository>();
 
@@ -57,10 +63,11 @@ public class GeracaoPreventivaBackgroundService : BackgroundService
         var pendentes = await repoPlanos.ListarPendentesAsync(hoje);
 
         if (pendentes.Count == 0)
-            return;
+            return 0;
 
         foreach (var plano in pendentes)
         {
+            ct.ThrowIfCancellationRequested();
             var numeroOS = await repoOrdens.ObterProximoNumeroAsync();
             var ordemServico = plano.GerarOrdemServico(numeroOS, DateTimeOffset.UtcNow);
             await repoOrdens.AdicionarAsync(ordemServico);
@@ -69,9 +76,11 @@ public class GeracaoPreventivaBackgroundService : BackgroundService
         // Um único SaveChanges grava as novas O.S. e o novo ProximaExecucao de cada plano,
         // pois repoPlanos e repoOrdens compartilham o mesmo DbContext (escopo).
         await repoPlanos.SalvarAlteracoesAsync();
+        await transaction.CommitAsync(ct);
 
         _logger.LogInformation(
             "{Quantidade} O.S. preventiva(s) gerada(s) automaticamente em {Quando}.",
             pendentes.Count, DateTimeOffset.UtcNow);
+        return pendentes.Count;
     }
 }

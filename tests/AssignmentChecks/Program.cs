@@ -11,6 +11,10 @@ using Npgsql;
 using Npgsql.NameTranslation;
 using ADSync.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using ADSync.Infrastructure.Jobs;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using ADSync.Domain.Interfaces;
 
 // Banco descartável com nome único, somente no PostgreSQL portátil de testes.
 // Não lê User Secrets nem aceita uma conexão externa.
@@ -177,6 +181,42 @@ try
     try { await Apply(rollbackEvent); throw new Exception("Técnico antigo sincronizou após reatribuição."); }
     catch (AcessoNegadoException) { }
     Console.WriteLine("PASS: falha ao gravar recibo desfaz o evento inteiro; reatribuição bloqueia o técnico anterior.");
+
+    // Executa o job real com contextos distintos, somente neste banco descartável.
+    var services = new ServiceCollection();
+    services.AddScoped(_ => new AdSyncDbContext(options));
+    services.AddScoped<IPlanoPreventivoRepository, PlanoPreventivoRepository>();
+    services.AddScoped<IOrdemServicoRepository, OrdemServicoRepository>();
+    using var provider = services.BuildServiceProvider();
+    var job = new GeracaoPreventivaBackgroundService(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<GeracaoPreventivaBackgroundService>.Instance);
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var dueId = Guid.NewGuid(); var inactiveId = Guid.NewGuid(); var futureId = Guid.NewGuid(); var inactiveTechId = Guid.NewGuid();
+    await using (var db = new AdSyncDbContext(options))
+    {
+        foreach (var spec in new[] { (dueId, today.AddDays(-60), true, a), (inactiveId, today, false, a), (futureId, today.AddDays(10), true, a), (inactiveTechId, today, true, inactive) })
+            db.PlanosPreventivos.Add(new PlanoPreventivo { Id = spec.Item1, EquipamentoId = equipment, TecnicoResponsavelId = spec.Item4, Descricao = "Revisão preventiva", PeriodicidadeDias = 30, ProximaExecucao = spec.Item2, Ativo = spec.Item3 });
+        await db.SaveChangesAsync();
+    }
+    var generated = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => job.GerarPendentesAsync()));
+    Check(generated.Sum() == 1, "Rodadas concorrentes duplicaram a preventiva.");
+    await using (var db = new AdSyncDbContext(options))
+    {
+        var order = await db.OrdensServico.SingleAsync(o => o.PlanoPreventivoId == dueId);
+        Check(order.TecnicoId == a && order.TipoManutencao == TipoManutencao.Preventiva, "Preventiva sem tipo/responsável correto.");
+        Check((await db.PlanosPreventivos.FindAsync(dueId))!.ProximaExecucao == today.AddDays(-30), "Data não avançou exatamente uma periodicidade.");
+        Check(!await db.OrdensServico.AnyAsync(o => o.PlanoPreventivoId == inactiveId || o.PlanoPreventivoId == futureId || o.PlanoPreventivoId == inactiveTechId), "Gerou plano inativo/futuro ou de técnico inativo.");
+        order.Status = StatusOS.Pausada;
+        await db.SaveChangesAsync();
+    }
+    Check(await job.GerarPendentesAsync() == 0, "Ordem pausada não impediu nova geração.");
+    await using (var db = new AdSyncDbContext(options))
+    {
+        var order = await db.OrdensServico.SingleAsync(o => o.PlanoPreventivoId == dueId);
+        order.Status = StatusOS.Concluida;
+        await db.SaveChangesAsync();
+    }
+    Check(await job.GerarPendentesAsync() == 1 && await job.GerarPendentesAsync() == 0, "Conclusão não liberou próxima geração ou houve duplicação.");
+    Console.WriteLine("PASS: job preventivo concorrente gera uma única ordem; respeita inativos, vencimento, responsável, pausa e conclusão; avança a data sem duplicar.");
 }
 
 finally

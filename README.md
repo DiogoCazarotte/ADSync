@@ -1,5 +1,11 @@
 # NexService — ADSync
 
+Frontend no VS Code com Tailwind CSS e daisyUI: [guia de edição e execução](docs/FRONTEND.md).
+
+> Documentação em evolução: partes históricas abaixo ainda descrevem etapas anteriores. A gestão dos planos preventivos foi completada na interface; funcionamento, limites da geração automática e teste isolado em [docs/PREVENTIVAS.md](docs/PREVENTIVAS.md).
+
+Atualização das preventivas: geração automática habilitada por autorização após revisão dos planos existentes. Requer reinício da API; seed continua desligado. As referências históricas abaixo à geração desativada não representam a configuração atual.
+
 Frontend Blazor WebAssembly e API ASP.NET Core em .NET 10, usando o **PostgreSQL/Supabase já configurado nos User Secrets da API**.
 
 ## Atualização: testes com gravação autorizados

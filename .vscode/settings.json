@@ -1,0 +1,4 @@
+{
+  "tailwindCSS.includeLanguages": { "aspnetcorerazor": "html", "razor": "html" },
+  "tailwindCSS.experimental.configFile": "ADSync.Client/Styles/app.css"
+}

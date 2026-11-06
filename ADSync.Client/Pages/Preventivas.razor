@@ -1,0 +1,118 @@
+@using ADSync.Application.DTOs
+@using ADSync.Client.Services
+@inject ManutencaoClient Client
+
+<h1>Preventivas</h1>
+<p>Organize as tarefas recorrentes por equipamento e técnico responsável. Alterações nos planos exigem conexão.</p>
+<fieldset class="workspace" disabled="@working">
+    <div class="filters">
+        <label>Buscar plano<input @bind="search" @bind:event="oninput" /></label>
+        <label>Situação do plano<select aria-label="Situação do plano" @bind="status"><option value="">Todas</option><option value="ativo">Ativos</option>@if (Client.Role("Gestor")) { <option value="inativo">Inativos</option> }</select></label>
+        <button type="button" @onclick="Refresh">Atualizar planos</button>
+    </div>
+    @if (CanManage)
+    {
+        <section class="card" aria-label="Formulário do plano preventivo">
+            <h2>@(editingId is null ? "Criar plano preventivo" : "Editar plano preventivo")</h2>
+            <EditForm Model="draft" OnValidSubmit="Save" @key="draft">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <label>Equipamento<InputSelect aria-label="Equipamento do plano" @bind-Value="draft.EquipamentoId">
+                    <option value="@Guid.Empty">Selecione</option>
+                    @if (draft.EquipamentoId != Guid.Empty && !equipment.Any(e => e.Id == draft.EquipamentoId)) { <option value="@draft.EquipamentoId">@editingEquipment (indisponível; selecione outro)</option> }
+                    @foreach (var e in equipment) { <option value="@e.Id">@e.Nome</option> }
+                </InputSelect></label>
+                <label>Técnico responsável<InputSelect aria-label="Técnico responsável pelo plano" @bind-Value="draft.TecnicoResponsavelId">
+                    <option value="@Guid.Empty">Selecione</option>
+                    @if (draft.TecnicoResponsavelId != Guid.Empty && !technicians.Any(t => t.Id == draft.TecnicoResponsavelId)) { <option value="@draft.TecnicoResponsavelId">@editingTechnician (indisponível; selecione outro)</option> }
+                    @foreach (var t in technicians) { <option value="@t.Id">@t.Nome</option> }
+                </InputSelect></label>
+                <label>Tarefa<InputTextArea @bind-Value="draft.Descricao" /></label>
+                <label>Periodicidade (dias)<InputNumber @bind-Value="draft.PeriodicidadeDias" /></label>
+                <label>Próxima execução<InputDate @bind-Value="draft.ProximaExecucao" /></label>
+                <button type="submit">@(editingId is null ? "Criar plano" : "Salvar alterações")</button>
+                @if (editingId is not null) { <button type="button" @onclick="Reset">Cancelar edição</button> }
+            </EditForm>
+        </section>
+    }
+    @if (!loading && !Filtered.Any()) { <p>Nenhum plano disponível nos filtros atuais.</p> }
+    @foreach (var p in Filtered)
+    {
+        <article class="card" @key="p.Id" aria-label="Plano preventivo">
+            <div class="toolbar"><h2>@p.EquipamentoNome</h2><span class="badge">@(p.Ativo ? "Ativo" : "Inativo")</span></div>
+            <p>@p.Descricao</p><p>@p.TecnicoResponsavelNome • a cada @p.PeriodicidadeDias dias • próxima: @p.ProximaExecucao.ToString("d")</p>
+            @if (p.Ativo && p.ProximaExecucao < DateOnly.FromDateTime(DateTime.Today)) { <p>Data prevista vencida.</p> }
+            @if (CanManage)
+            {
+                <button type="button" @onclick="() => Edit(p)">Editar plano</button>
+                <button type="button" @onclick="() => Toggle(p)">@(p.Ativo ? "Inativar plano" : "Ativar plano")</button>
+            }
+        </article>
+    }
+</fieldset>
+@if (working) { <p role="status">Carregando planos…</p> }
+@if (message.Length > 0) { <p role="status" class="message">@message</p> }
+@if (error.Length > 0) { <p role="alert" class="message">@error</p> }
+
+@code {
+    [Parameter] public EventCallback<bool> OnBusy { get; set; }
+    bool working, loading = true;
+    bool CanManage => Client.Role("Gestor") && !Client.ReadOnlyMode;
+    string search = "", status = "", message = "", error = "", editingEquipment = "", editingTechnician = "";
+    Guid? editingId;
+    List<PlanoPreventivoDto> plans = [];
+    List<EquipamentoDto> equipment = [];
+    List<UsuarioDto> technicians = [];
+    SalvarPlanoPreventivoDto draft = NewDraft();
+    static SalvarPlanoPreventivoDto NewDraft() => new() { PeriodicidadeDias = 30, ProximaExecucao = DateOnly.FromDateTime(DateTime.Today.AddDays(1)) };
+    IEnumerable<PlanoPreventivoDto> Filtered => plans.Where(p =>
+        (status == "" || p.Ativo == (status == "ativo")) &&
+        new[] { p.EquipamentoNome, p.TecnicoResponsavelNome, p.Descricao }.Any(v => v.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)))
+        .OrderByDescending(p => p.Ativo).ThenBy(p => p.ProximaExecucao).ThenBy(p => p.EquipamentoNome);
+    protected override Task OnInitializedAsync() => Refresh();
+    async Task Run(Func<Task> action)
+    {
+        if (working || !(Client.Role("Gestor") || Client.Role("Tecnico"))) return;
+        working = true; error = message = "";
+        await OnBusy.InvokeAsync(true);
+        try { await action(); }
+        catch (Exception ex) { error = ex.Message; }
+        finally { working = false; loading = false; await OnBusy.InvokeAsync(false); }
+    }
+    Task Refresh() => Run(async () =>
+    {
+        plans = await Client.GetAsync<List<PlanoPreventivoDto>>(Client.Role("Gestor") ? "api/planos-preventivos?incluirInativos=true" : "api/planos-preventivos");
+        if (CanManage)
+        {
+            equipment = await Client.GetAsync<List<EquipamentoDto>>("api/equipamentos");
+            technicians = await Client.GetAsync<List<UsuarioDto>>("api/usuarios?tipo=Tecnico");
+        }
+    });
+    void Reset() { editingId = null; draft = NewDraft(); editingEquipment = editingTechnician = ""; }
+    void Edit(PlanoPreventivoDto p)
+    {
+        editingId = p.Id; editingEquipment = p.EquipamentoNome; editingTechnician = p.TecnicoResponsavelNome;
+        draft = new() { EquipamentoId = p.EquipamentoId, TecnicoResponsavelId = p.TecnicoResponsavelId, Descricao = p.Descricao, PeriodicidadeDias = p.PeriodicidadeDias, ProximaExecucao = p.ProximaExecucao };
+        error = message = "";
+    }
+    void Update(PlanoPreventivoDto saved)
+    {
+        plans.RemoveAll(p => p.Id == saved.Id); plans.Add(saved);
+    }
+    Task Save() => Run(async () =>
+    {
+        if (!CanManage) throw new InvalidOperationException("Alteração de planos indisponível.");
+        if (draft.EquipamentoId == Guid.Empty || draft.TecnicoResponsavelId == Guid.Empty)
+            throw new InvalidOperationException("Selecione o equipamento e o técnico responsável.");
+        if (draft.ProximaExecucao == default) throw new InvalidOperationException("Informe a próxima execução.");
+        var saved = editingId is Guid id
+            ? await Client.PutAsync<PlanoPreventivoDto>($"api/planos-preventivos/{id}", draft)
+            : await Client.PostAsync<PlanoPreventivoDto>("api/planos-preventivos", draft);
+        Update(saved); Reset(); message = "Plano confirmado pelo servidor.";
+    });
+    Task Toggle(PlanoPreventivoDto p) => Run(async () =>
+    {
+        if (!CanManage) throw new InvalidOperationException("Alteração de planos indisponível.");
+        var saved = await Client.PostAsync<PlanoPreventivoDto>($"api/planos-preventivos/{p.Id}/{(p.Ativo ? "inativar" : "ativar")}", new { });
+        Update(saved); message = saved.Ativo ? "Plano ativado." : "Plano inativado. Ordens já geradas foram preservadas.";
+    });
+}

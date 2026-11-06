@@ -1,0 +1,64 @@
+@using ADSync.Application.DTOs
+
+<div class="workspace-screen" @onkeydown="HandleKey">
+    <header class="workspace-topbar">
+        <div class="workspace-header-start">
+            <button class="workspace-icon-button" type="button" aria-label="Menu de navegação" aria-expanded="@(menuOpen ? "true" : "false")" aria-controls="workspace-navigation" @onclick="() => menuOpen = !menuOpen"><AppIcon Name="menu" /></button>
+            <div class="workspace-search"><AppIcon Name="search" /><input aria-label="Buscar ordens de serviço" placeholder="Buscar ordens de serviço" value="@Search" @oninput="SearchChanged" /></div>
+        </div>
+        <button class="workspace-brand" type="button" aria-label="ADSync — visão geral" @onclick='() => Navigate("Visão geral")'><img class="brand-logo" src="images/adsync-logo-hd.png" alt="ADSync" width="3992" height="2552" /></button>
+        <div class="workspace-header-end">
+            <button class="workspace-icon-button workspace-refresh" type="button" aria-label="Atualizar consultas" disabled="@Busy" @onclick="OnRefresh"><AppIcon Name="refresh" /></button>
+            <ConnectionIndicator Online="@Online" />
+            <details class="account-menu" open="@profileOpen">
+                <summary aria-label="Menu do usuário" aria-expanded="@(profileOpen ? "true" : "false")" @onclick="ToggleProfile" @onclick:preventDefault><span class="user-avatar"><AppIcon Name="user" /></span><AppIcon Name="chevron" /></summary>
+                @if (profileOpen)
+                {
+                    <button class="account-backdrop" type="button" aria-label="Fechar menu do usuário" @onclick="() => profileOpen = false"></button>
+                    <div class="account-popover">
+                        <div class="account-identity"><span class="user-avatar"><AppIcon Name="user" /></span><div><strong>@Session.Nome</strong><span>@Session.Email</span><small>@string.Join(" · ", Session.Papeis.Select(p => p == "Tecnico" ? "Técnico" : p))</small></div></div>
+                        <div class="account-connection"><ConnectionIndicator Online="@Online" /><span>Conexão deste dispositivo</span></div>
+                        <button class="account-logout" type="button" disabled="@Busy" @onclick="OnLogout"><AppIcon Name="logout" />Sair</button>
+                    </div>
+                }
+            </details>
+        </div>
+    </header>
+    @if (menuOpen)
+    {
+        <button class="navigation-backdrop" type="button" aria-label="Fechar menu de navegação" @onclick="() => menuOpen = false"></button>
+    }
+    <nav id="workspace-navigation" class="workspace-navigation @(menuOpen ? "is-open" : "")" aria-label="Áreas" hidden="@(!menuOpen)">
+        <span class="workspace-navigation-label">SEU ESPAÇO DE TRABALHO</span>
+        @foreach (var item in Areas)
+        {
+            <button type="button" class="@(ActiveArea == item ? "selected" : "")" aria-current="@(ActiveArea == item ? "page" : null)" disabled="@Busy" @onclick="() => Navigate(item)"><AppIcon Name="@IconFor(item)" />@item</button>
+        }
+        <div class="workspace-navigation-footer">ADSync <span>Gestão de ordens de serviço</span></div>
+    </nav>
+    <div class="workspace-content">
+        <p class="workspace-breadcrumb">Meu espaço <span aria-hidden="true">/</span> <strong>@ActiveArea</strong></p>
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [CascadingParameter(Name = "DeviceOnline")] public bool? Online { get; set; }
+    [Parameter, EditorRequired] public LoginResponseDto Session { get; set; } = default!;
+    [Parameter] public IEnumerable<string> Areas { get; set; } = [];
+    [Parameter] public string ActiveArea { get; set; } = "Visão geral";
+    [Parameter] public string Search { get; set; } = "";
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<string> OnNavigate { get; set; }
+    [Parameter] public EventCallback<string> OnSearch { get; set; }
+    [Parameter] public EventCallback OnLogout { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    bool menuOpen, profileOpen;
+
+    async Task Navigate(string next) { menuOpen = profileOpen = false; await OnNavigate.InvokeAsync(next); }
+    void ToggleProfile() { menuOpen = false; profileOpen = !profileOpen; }
+    Task SearchChanged(ChangeEventArgs args) => OnSearch.InvokeAsync(args.Value?.ToString() ?? "");
+    void HandleKey(KeyboardEventArgs args) { if (args.Key == "Escape") menuOpen = profileOpen = false; }
+    public static string IconFor(string area) => area switch { "Visão geral" => "grid", "Indicadores" => "chart", "Preventivas" => "calendar", "Equipamentos e peças" => "box", "Usuários" => "users", _ => "clipboard" };
+}

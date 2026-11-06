@@ -3,28 +3,60 @@
 @using ADSync.Client.Services
 @inject ManutencaoClient Client
 @implements IDisposable
-<PageTitle>NexService • Manutenção</PageTitle>
+<PageTitle>ADSync • Gestão de ordens de serviço</PageTitle>
 @if (Client.ReadOnlyMode) { <p class="message" role="status">Ambiente somente leitura: abertura de O.S., atendimento e alterações estão indisponíveis neste endereço. As consultas usam dados atuais da API.</p> }
 <fieldset class="workspace" disabled="@Working">
 @if (!ready) { <p role="status">Carregando sessão…</p> }
 else if (Client.Session is null)
 {
-    <section class="login card"><h1>Manutenção organizada</h1><p>Entre para acompanhar os equipamentos.</p>
-        <EditForm Model="login" OnValidSubmit="Login"><DataAnnotationsValidator /><ValidationSummary />
-            <label>E-mail<InputText type="email" @bind-Value="login.Email" autocomplete="username" /></label>
-            <label>Senha<InputText type="password" @bind-Value="login.Senha" autocomplete="current-password" /></label>
-            <button disabled="@Working">Entrar</button>
-        </EditForm>
+    <section class="login-shell" aria-labelledby="login-title">
+        <span class="login-corner-brand" aria-label="ADSync">AD<span>Sync</span></span>
+        <div class="login-intro">
+            <div class="login-intro-copy">
+                <h2>Mais organização.<br />Mais agilidade.<br /><span>Mais controle.</span></h2>
+                <p>Conecte sua equipe e simplifique a gestão das ordens de serviço, do primeiro chamado à solução.</p>
+            </div>
+            <img class="login-logo" src="images/adsync-logo.jpeg" alt="ADSync — Gestão de ordens de serviço. Organização, agilidade e controle." width="1080" height="1062" fetchpriority="high" />
+            <div class="login-intro-note">
+                <span class="login-note-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="5" width="14" height="16" rx="3" /><path d="M9 5V3h6v2M9 13l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+                <div><strong>Sua operação, em sintonia.</strong><p>Chamados, equipamentos e manutenção preventiva. Tudo no mesmo lugar para você focar no que importa.</p></div>
+            </div>
+        </div>
+        <div class="login-form-panel">
+            <div class="login-form-heading">
+                <h1 id="login-title">Uma gestão mais simples <strong>começa aqui.</strong></h1>
+                <p>Acesse sua conta e acompanhe o dia a dia da sua equipe.</p>
+            </div>
+            <EditForm Model="login" OnValidSubmit="Login"><DataAnnotationsValidator />
+                <label for="login-email">E-mail <span class="login-required" aria-hidden="true">*</span></label>
+                <InputText id="login-email" type="email" @bind-Value="login.Email" autocomplete="username" placeholder="Digite seu e-mail" aria-required="true" />
+                <label for="login-password">Senha <span class="login-required" aria-hidden="true">*</span></label>
+                <div class="login-password">
+                    <InputText id="login-password" type="@(showPassword ? "text" : "password")" @bind-Value="login.Senha" autocomplete="current-password" placeholder="Digite sua senha" aria-required="true" />
+                    <button class="login-password-toggle" type="button" @onclick="() => showPassword = !showPassword" aria-label="@(showPassword ? "Ocultar senha" : "Mostrar senha")" aria-pressed="@(showPassword ? "true" : "false")" aria-controls="login-password">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />@if (showPassword) { <path d="m3 3 18 18" /> }</svg>
+                    </button>
+                </div>
+                <details class="login-recovery"><summary>Esqueceu sua senha?</summary><p>Entre em contato com o gestor da sua equipe para recuperar o acesso.</p></details>
+                <button class="login-submit" type="submit" disabled="@Working">@(Working ? "Entrando…" : "Entrar")</button>
+                <ValidationSummary />
+            </EditForm>
+            <p class="login-help">Ainda não tem acesso? <strong>Fale com o gestor da sua equipe.</strong></p>
+        </div>
     </section>
 }
 else
 {
-    <div class="toolbar"><span>@Client.Session.Nome • @string.Join(", ", Client.Session.Papeis)</span><button disabled="@Working" @onclick="Logout">Sair</button></div>
-    <p role="status">@ProfileDescription</p>
-    <nav aria-label="Áreas">
-        @foreach (var item in Areas) { <button disabled="@Working" class="@(area == item ? "selected" : "")" @onclick="() => Switch(item)">@item</button> }
-    </nav>
-    <div class="toolbar"><span role="status">@Client.Pending pendência(s) no dispositivo</span><button disabled="@(Working || Client.ReadOnlyMode)" @onclick="Sync">Tentar sincronizar</button><button disabled="@Working" @onclick="Refresh">Atualizar consultas</button></div>
+    <WorkspaceShell Session="Client.Session" Areas="Areas" ActiveArea="@area" Search="@search" Busy="Working" OnNavigate="Switch" OnSearch="SearchOrders" OnLogout="Logout" OnRefresh="Refresh">
+    @if (area == "Visão geral")
+    {
+        <WorkspaceOverview Name="@Client.Session.Nome" Orders="orders" Plans="plans" Equipment="equipment" Areas="Areas" Pending="Client.Pending" Busy="Working" ReadOnly="Client.ReadOnlyMode" CanSeePlans='@(Client.Role("Gestor") || Client.Role("Tecnico"))' OnNavigate="Switch" OnDetail="ShowOrder" OnSync="Sync" />
+    }
+    else
+    {
+        <div class="workspace-sync toolbar"><span role="status">@Client.Pending pendência(s) no dispositivo</span><button disabled="@(Working || Client.ReadOnlyMode)" @onclick="Sync"><AppIcon Name="refresh" />Tentar sincronizar</button></div>
+    }
+    <p class="workspace-profile-description" role="status">@ProfileDescription</p>
     @if (Client.TechnicalOfflineEnabled && Client.Role("Tecnico"))
     {
         <p role="status">@Client.PreparationNotice</p>
@@ -98,16 +130,7 @@ else
     }
     else if(area == "Preventivas" && (Client.Role("Gestor") || Client.Role("Tecnico")))
     {
-        <h1>Preventivas</h1>
-        @if(!Client.ReadOnlyMode && Client.Role("Gestor"))
-        {
-            <details class="card"><summary>Criar plano preventivo</summary><EditForm Model="plan" OnValidSubmit="CreatePlan"><DataAnnotationsValidator /><ValidationSummary />
-                <label>Equipamento<InputSelect aria-label="Equipamento" @bind-Value="plan.EquipamentoId"><option value="@Guid.Empty">Selecione</option>@foreach(var e in equipment) { <option value="@e.Id">@e.Nome</option> }</InputSelect></label>
-                <label>Técnico responsável<InputSelect aria-label="Técnico responsável" @bind-Value="plan.TecnicoResponsavelId"><option value="@Guid.Empty">Selecione</option>@foreach(var t in technicians) { <option value="@t.Id">@t.Nome</option> }</InputSelect></label>
-                <label>Tarefa<InputTextArea @bind-Value="plan.Descricao" /></label><label>Periodicidade (dias)<InputNumber @bind-Value="plan.PeriodicidadeDias" /></label><label>Primeira execução<InputDate @bind-Value="plan.ProximaExecucao" /></label><button disabled="@Working">Criar plano</button>
-            </EditForm></details>
-        }
-        @foreach(var p in plans) { <article class="card"><h2>@p.EquipamentoNome</h2><p>@p.Descricao</p><p>@p.TecnicoResponsavelNome • a cada @p.PeriodicidadeDias dias • próxima: @p.ProximaExecucao.ToString("d")</p></article> }
+        <Preventivas OnBusy="PreventiveBusy" />
     }
     else if(area == "Indicadores" && Client.Role("Gestor"))
     {
@@ -119,6 +142,7 @@ else
         }
         <p>“—” significa ausência de dados. O intervalo usa aberturas de corretivas, não horas reais de operação. MTTR desconta pausas e não representa toda a indisponibilidade.</p>
     }
+    </WorkspaceShell>
 }
 </fieldset>
 @if (Working) { <p role="status">Processando…</p> }
@@ -126,8 +150,9 @@ else
 @if (!string.IsNullOrEmpty(Client.Notice)) { <p role="status" class="message">@Client.Notice</p> }
 
 @code {
-    bool ready, working;
+    bool ready, working, showPassword;
     bool Working => working;
+    void PreventiveBusy(bool busy) => working = busy;
     string ProfileDescription => Client.Role("Gestor")
         ? "Gestor de manutenção: acompanhe todas as ordens, ajuste a atribuição automática dos técnicos e gerencie cadastros e indicadores."
         : Client.Role("Tecnico")
@@ -138,13 +163,12 @@ else
     string OrderDescription => Client.Role("Gestor") ? "Todas as ordens de serviço da equipe."
         : Client.Role("Tecnico") ? "Seus atendimentos: somente ordens atribuídas a você. Se a lista estiver vazia, solicite a atribuição ao gestor."
         : "Suas solicitações: somente ordens que você abriu.";
-    string area = "Ordens de serviço", message = "", search = "", status = "", priority = "", pause = "", observations = "";
+    string area = "Visão geral", message = "", search = "", status = "", priority = "", pause = "", observations = "";
     string[] priorities = ["Critica", "Alta", "Media", "Baixa"], statuses = ["Aberta", "EmAndamento", "Pausada", "Concluida", "Cancelada"];
-    IEnumerable<string> Areas => Client.Role("Gestor") ? ["Ordens de serviço", "Indicadores", "Preventivas", "Equipamentos e peças", "Cadastros", "Usuários"]
-        : Client.Role("Tecnico") ? ["Ordens de serviço", "Preventivas", "Equipamentos e peças"]
-        : ["Ordens de serviço"];
+    IEnumerable<string> Areas => Client.Role("Gestor") ? ["Visão geral", "Ordens de serviço", "Indicadores", "Preventivas", "Equipamentos e peças", "Cadastros", "Usuários"]
+        : Client.Role("Tecnico") ? ["Visão geral", "Ordens de serviço", "Preventivas", "Equipamentos e peças"]
+        : ["Visão geral", "Ordens de serviço"];
     LoginDto login = new(); CriarOrdemServicoDto draft = new();
-    SalvarPlanoPreventivoDto plan = new() { PeriodicidadeDias = 30, ProximaExecucao = DateOnly.FromDateTime(DateTime.Today.AddDays(1)) };
     List<OrdemServicoDto> orders = []; List<EquipamentoDto> equipment = []; List<PecaDto> parts = []; List<UsuarioDto> technicians = []; List<CausaFalhaDto> causes = []; List<PlanoPreventivoDto> plans = [];
     OrdemServicoDetalheDto? detail; IndicadoresDto? indicators;
     Guid technician, part, cause; int quantity = 1;
@@ -194,11 +218,13 @@ else
             Client.PrepareInBackground();
         }
     }
-    Task Login() => Run(async () => { await Client.LoginAsync(login); login = new(); await Load(); });
-    Task Logout() => Run(async () => { await Client.LogoutAsync(); orders = []; equipment = []; parts = []; technicians = []; causes = []; plans = []; detail = null; indicators = null; draft = new(); plan = new() { PeriodicidadeDias = 30, ProximaExecucao = DateOnly.FromDateTime(DateTime.Today.AddDays(1)) }; technician = part = cause = Guid.Empty; observations = pause = search = status = priority = ""; area = "Ordens de serviço"; });
+    Task Login() => Run(async () => { await Client.LoginAsync(login); login = new(); showPassword = false; await Load(); });
+    Task Logout() => Run(async () => { await Client.LogoutAsync(); orders = []; equipment = []; parts = []; technicians = []; causes = []; plans = []; detail = null; indicators = null; draft = new(); technician = part = cause = Guid.Empty; observations = pause = search = status = priority = ""; area = "Visão geral"; });
     Task Refresh() => Run(Load);
     Task Sync() => Run(async () => { await Client.SyncAsync(); await Load(); });
     Task Switch(string next) => Run(async () => { area = next; if(next == "Indicadores") await LoadIndicators(); });
+    void SearchOrders(string query) { search = query; area = "Ordens de serviço"; }
+    Task ShowOrder(Guid id) { area = "Ordens de serviço"; return Detail(id); }
     Task Open() => Run(async () => { if(draft.EquipamentoId == Guid.Empty || string.IsNullOrWhiteSpace(draft.DescricaoProblema)) throw new InvalidOperationException("Informe equipamento e descrição."); await Client.OpenAsync(draft); draft = new(); message = "Chamado salvo no dispositivo. Confira as pendências de envio."; if(Client.Pending == 0) await Load(); });
     Task Detail(Guid id) => Run(async () => { detail = Client.TechnicalOfflineEnabled && Client.Role("Tecnico")
         ? await Client.TechnicalDetailAsync(id) : await Client.GetOnlineAsync<OrdemServicoDetalheDto>($"api/ordensservico/{id}"); pause = observations = ""; part = cause = Guid.Empty; quantity = 1; });
@@ -225,7 +251,6 @@ else
             part = Guid.Empty; quantity = 1;
         }
     });
-    Task CreatePlan() => Run(async () => { await Client.PostAsync<PlanoPreventivoDto>("api/planos-preventivos", plan); message = "Plano criado."; await Load(); });
     Task Indicators() => Run(LoadIndicators);
     async Task LoadIndicators() => indicators = await Client.GetAsync<IndicadoresDto>($"api/indicadores?dataInicio={start:yyyy-MM-dd}&dataFim={end:yyyy-MM-dd}");
     public void Dispose() => Client.Changed -= Changed;

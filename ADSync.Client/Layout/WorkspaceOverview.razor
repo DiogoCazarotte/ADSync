@@ -1,0 +1,76 @@
+@using ADSync.Application.DTOs
+@using System.Globalization
+
+<div class="workspace-welcome"><div><h1>Olá, @FirstName.</h1><p>Seu dia de trabalho, organizado em um só lugar.</p></div><span class="workspace-today"><AppIcon Name="calendar" />@DateTime.Today.ToString("dd 'de' MMMM 'de' yyyy", Portuguese)</span></div>
+<div class="overview-grid">
+    <section class="overview-card overview-orders" aria-labelledby="overview-orders-title">
+        <header><h2 id="overview-orders-title">Ordens de serviço</h2><span>@Orders.Count no total</span></header>
+        <div class="overview-card-body">
+            <div class="overview-counts"><div><strong>@Orders.Count(o => o.Status is "Aberta" or "EmAndamento" or "Pausada")</strong><span>Em aberto</span></div><div><strong>@Orders.Count(o => o.Status == "Concluida")</strong><span>Concluídas</span></div></div>
+            <div class="overview-order-list">
+                @if (Orders.Count == 0) { <div class="overview-empty"><AppIcon Name="clipboard" /><p>Nenhuma ordem disponível para o seu perfil.</p></div> }
+                @foreach (var order in Orders.OrderByDescending(o => o.DataAbertura).Take(3))
+                {
+                    <button type="button" class="overview-order" disabled="@Busy" @onclick="() => OnDetail.InvokeAsync(order.Id)"><span><strong>@order.NumeroOS</strong><span>@order.EquipamentoNome</span><small>@StatusLabel(order.Status)</small></span><AppIcon Name="arrow" /></button>
+                }
+            </div>
+            <button type="button" class="workspace-text-button" disabled="@Busy" @onclick='() => OnNavigate.InvokeAsync("Ordens de serviço")'>Ver ordens de serviço <AppIcon Name="arrow" /></button>
+        </div>
+    </section>
+    <section class="overview-card" aria-labelledby="overview-agenda-title">
+        <div class="overview-card-body">
+            <h2 id="overview-agenda-title">@(CanSeePlans ? "Agenda de preventivas" : "Seus equipamentos")</h2>
+            @if (CanSeePlans)
+            {
+                <div class="overview-calendar-title"><strong>@DateTime.Today.Day</strong><div><span>@DateTime.Today.ToString("MMMM", Portuguese)</span><small>@DateTime.Today.ToString("dddd", Portuguese)</small></div><AppIcon Name="calendar" /></div>
+                <div class="overview-week" aria-label="Semana atual">
+                    @foreach (var day in Week) { <div class="@(day.Date == DateTime.Today ? "today" : "")" aria-current="@(day.Date == DateTime.Today ? "date" : null)"><span>@day.ToString("ddd", Portuguese).TrimEnd('.')</span><strong>@day.Day</strong></div> }
+                </div>
+                <div class="overview-plan-list">
+                    @if (!Plans.Any(p => p.Ativo)) { <div class="overview-empty"><AppIcon Name="calendar" /><p>Nenhum plano preventivo ativo.</p></div> }
+                    @foreach (var plan in Plans.Where(p => p.Ativo).OrderBy(p => p.ProximaExecucao).Take(3)) { <div class="overview-plan"><span>@plan.ProximaExecucao.ToString("dd/MM")</span><div><strong>@plan.EquipamentoNome</strong><small>@plan.Descricao</small></div></div> }
+                </div>
+                <button type="button" class="workspace-text-button" disabled="@Busy" @onclick='() => OnNavigate.InvokeAsync("Preventivas")'>Ver planos preventivos <AppIcon Name="arrow" /></button>
+            }
+            else
+            {
+                <p class="overview-description">Equipamentos disponíveis para abertura de chamados.</p>
+                <div class="overview-equipment-list">
+                    @if (Equipment.Count == 0) { <div class="overview-empty"><AppIcon Name="box" /><p>Nenhum equipamento disponível.</p></div> }
+                    @foreach (var item in Equipment.Take(4)) { <div class="overview-equipment"><AppIcon Name="box" /><div><strong>@item.Nome</strong><small>@item.Setor · @item.CodigoPatrimonio</small></div></div> }
+                </div>
+                <button type="button" class="workspace-text-button" disabled="@Busy" @onclick='() => OnNavigate.InvokeAsync("Ordens de serviço")'>Ir para os chamados <AppIcon Name="arrow" /></button>
+            }
+        </div>
+    </section>
+    <section class="overview-card" aria-labelledby="overview-device-title">
+        <div class="overview-card-body">
+            <h2 id="overview-device-title">Seu dispositivo</h2>
+            <div class="overview-device-state"><span class="overview-device-icon @(Online is false ? "offline" : "")"><AppIcon Name="@(Online is false ? "wifi-off" : Pending > 0 ? "refresh" : "check")" /></span><h3>@(Online is false ? "Você está offline" : Pending > 0 ? "Envios aguardando sincronização" : "Nenhum envio pendente")</h3><p>@(Pending > 0 ? $"{Pending} alteração(ões) salva(s) neste navegador aguardando envio." : "Não há alterações aguardando envio neste dispositivo.")</p><small>@(Online is false ? "A sincronização será retomada quando a conexão voltar." : "Seus registros locais são preservados até a confirmação do servidor.")</small></div>
+            <button type="button" class="workspace-primary-button" disabled="@(Busy || ReadOnly || Online is false)" @onclick="OnSync"><AppIcon Name="refresh" />Tentar sincronizar</button>
+        </div>
+    </section>
+</div>
+<section class="workspace-shortcuts" aria-label="Acesso rápido"><h2>Acesso rápido</h2><div>
+    @foreach (var item in Areas.Where(a => a != "Visão geral")) { <button type="button" disabled="@Busy" @onclick="() => OnNavigate.InvokeAsync(item)"><span class="shortcut-icon"><AppIcon Name="@WorkspaceShell.IconFor(item)" /></span><strong>@item</strong><AppIcon Name="arrow" /></button> }
+</div></section>
+
+@code {
+    [CascadingParameter(Name = "DeviceOnline")] public bool? Online { get; set; }
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public List<OrdemServicoDto> Orders { get; set; } = [];
+    [Parameter] public List<PlanoPreventivoDto> Plans { get; set; } = [];
+    [Parameter] public List<EquipamentoDto> Equipment { get; set; } = [];
+    [Parameter] public IEnumerable<string> Areas { get; set; } = [];
+    [Parameter] public int Pending { get; set; }
+    [Parameter] public bool CanSeePlans { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public EventCallback<string> OnNavigate { get; set; }
+    [Parameter] public EventCallback<Guid> OnDetail { get; set; }
+    [Parameter] public EventCallback OnSync { get; set; }
+    static readonly CultureInfo Portuguese = CultureInfo.GetCultureInfo("pt-BR");
+    string FirstName => Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "bem-vindo";
+    IEnumerable<DateTime> Week => Enumerable.Range(0, 7).Select(i => DateTime.Today.AddDays(i - (int)DateTime.Today.DayOfWeek));
+    static string StatusLabel(string status) => status switch { "EmAndamento" => "Em andamento", "Concluida" => "Concluída", _ => status };
+}

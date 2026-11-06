@@ -1,0 +1,8 @@
+<span class="connection-indicator @(Online is true ? "is-online" : Online is false ? "is-offline" : "is-checking")" role="status" aria-live="polite" title="Conexão de rede deste dispositivo">
+    <AppIcon Name="@(Online is false ? "wifi-off" : "wifi")" />
+    <span>@(Online is true ? "Online" : Online is false ? "Offline" : "Verificando")</span>
+</span>
+
+@code {
+    [Parameter] public bool? Online { get; set; }
+}

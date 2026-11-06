@@ -6,6 +6,6 @@ if (Test-Path Env:ConnectionStrings__AdSync) {
 }
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
 $env:Seed__Enabled = 'false'
-$env:Preventivas__GeracaoAutomaticaHabilitada = 'false'
+$env:Preventivas__GeracaoAutomaticaHabilitada = 'true'
 $env:Safety__ReadOnly = 'false'
 dotnet run --project (Join-Path $root 'ADSync.Api') --no-launch-profile --urls http://localhost:5099

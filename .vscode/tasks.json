@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Frontend: compilar CSS",
+      "type": "npm",
+      "script": "build:css",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: acompanhar CSS",
+      "type": "npm",
+      "script": "watch:css",
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

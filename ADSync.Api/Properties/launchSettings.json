@@ -9,7 +9,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Seed__Enabled": "false",
-        "Preventivas__GeracaoAutomaticaHabilitada": "false",
+        "Preventivas__GeracaoAutomaticaHabilitada": "true",
         "Safety__ReadOnly": "false"
       }
     },
@@ -21,7 +21,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Seed__Enabled": "false",
-        "Preventivas__GeracaoAutomaticaHabilitada": "false",
+        "Preventivas__GeracaoAutomaticaHabilitada": "true",
         "Safety__ReadOnly": "false"
       }
     },
@@ -33,7 +33,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Seed__Enabled": "false",
-        "Preventivas__GeracaoAutomaticaHabilitada": "false",
+        "Preventivas__GeracaoAutomaticaHabilitada": "true",
         "Safety__ReadOnly": "false"
       }
     }

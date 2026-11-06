@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
 
 // PWA Release real e API simulada em porta aleatória; não acessa nenhum banco.
 (async () => {
-    const root = path.resolve('.local-demo/cadastros/client/wwwroot');
+    const root = path.resolve(process.env.FRONTEND_TEST_ROOT || '.local-demo/cadastros/client/wwwroot');
     const id = '00000000-0000-0000-0000-000000000001';
     const piece = '00000000-0000-0000-0000-000000000002';
     const cause = '00000000-0000-0000-0000-000000000003';

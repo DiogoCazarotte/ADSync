@@ -33,6 +33,23 @@ try
         o.MapEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: translator);
     }).AddInterceptors(new ReadOnlySaveChangesInterceptor(true)).Options;
     await using var db = new AdSyncDbContext(options);
+    if (args.Contains("--preventivas"))
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var plans = await db.PlanosPreventivos.AsNoTracking()
+            .Include(p => p.Equipamento).Include(p => p.TecnicoResponsavel).ToListAsync();
+        var blocked = await db.OrdensServico.AsNoTracking()
+            .Where(o => o.PlanoPreventivoId != null && (o.Status == StatusOS.Aberta || o.Status == StatusOS.EmAndamento || o.Status == StatusOS.Pausada))
+            .Select(o => o.PlanoPreventivoId!.Value).Distinct().ToListAsync();
+        var due = plans.Where(p => p.Ativo && p.ProximaExecucao <= today).ToList();
+        var eligible = due.Where(p => p.Equipamento?.Ativo == true && p.TecnicoResponsavel?.Ativo == true && !blocked.Contains(p.Id)).ToList();
+        Console.WriteLine($"Referência UTC: {today:yyyy-MM-dd}. Total: {plans.Count}; ativos: {plans.Count(p => p.Ativo)}; ativos com data vencida/hoje: {due.Count}.");
+        Console.WriteLine($"Elegíveis na próxima rodada: {eligible.Count}; vencidos bloqueados por ordem aberta/andamento/pausa: {due.Count(p => blocked.Contains(p.Id))}; vencidos com equipamento/técnico inativo ou ausente: {due.Count(p => p.Equipamento?.Ativo != true || p.TecnicoResponsavel?.Ativo != true)}.");
+        foreach (var plan in eligible.OrderBy(p => p.ProximaExecucao))
+            Console.WriteLine($"Plano {plan.Id}: próxima {plan.ProximaExecucao:yyyy-MM-dd}; periodicidade {plan.PeriodicidadeDias} dias; data após gerar {plan.ProximaExecucao.AddDays(plan.PeriodicidadeDias):yyyy-MM-dd}.");
+        Console.WriteLine("Somente consulta; agendador e dados preservados.");
+        return;
+    }
     Console.WriteLine($"Leitura: {await db.Usuarios.AsNoTracking().CountAsync()} perfis, {await db.Equipamentos.AsNoTracking().CountAsync()} equipamentos, {await db.Pecas.AsNoTracking().CountAsync()} peças, {await db.OrdensServico.AsNoTracking().CountAsync()} ordens, {await db.PlanosPreventivos.AsNoTracking().CountAsync()} planos.");
     _ = await db.Usuarios.AsNoTracking().Take(5).ToListAsync();
     _ = await db.OrdensServico.AsNoTracking().Include(x => x.RegistrosTempo).Take(5).ToListAsync();
