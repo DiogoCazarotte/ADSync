@@ -1,0 +1,18 @@
+# Execução da imagem pronta, sem precisar do código-fonte ou de compilação.
+name: adsync
+services:
+  app:
+    image: adsync:local
+    pull_policy: never
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - path: .env.docker
+        format: raw
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      Hosting__ServeClient: "true"
+      Hosting__UseHttpsRedirection: "false"
+      Seed__Enabled: "false"
+    restart: unless-stopped

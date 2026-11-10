@@ -2,6 +2,8 @@
 
 O projeto está preparado para **um container Linux com a API e a interface**, acessível em **http://localhost:8080**. O PostgreSQL continua no Supabase existente. Não é necessário instalar .NET, Node.js ou PostgreSQL no computador para usar este fluxo: o Docker baixa as ferramentas de compilação e monta a aplicação.
 
+Para levar a imagem pronta em um pendrive e executar sem o código-fonte, siga o [guia para outra máquina](OUTRA-MAQUINA.md). Ele usa `compose.portable.yaml`, que não exige compilação no destino.
+
 ```mermaid
 flowchart LR
     B[Navegador] -->|localhost:8080| C[Container ADSync]
@@ -143,4 +145,4 @@ Uma sessão de navegador em `localhost:8080` tem armazenamento separado de `loca
 
 A publicação Release foi montada fora do Docker com a mesma estrutura de arquivos. O teste `tests/container-host.cjs` verificou a API e a interface na mesma origem, carregamento do WASM, autenticação, retornos 404, cache e recarga offline da PWA. A API de teste usou configuração fictícia, somente leitura, seed e agendador desligados, sem acesso ao banco. `tests/container-env.ps1` verificou a geração do arquivo privado com credenciais fictícias, caracteres especiais, secrets planos/aninhados e proteção contra sobrescrita.
 
-Em 10/11/2026, o Docker Desktop foi instalado na máquina, mas o mecanismo Linux não iniciou: os logs informaram `Virtual Machine Platform not enabled` e `No virtualization available`. A consulta ao Windows também retornou `VirtualizationFirmwareEnabled=False` para o Ryzen 7 5700X. A imagem Linux ainda precisa ser construída e executada depois de habilitar a virtualização na BIOS/UEFI e o recurso do Windows. A validação da publicação não substitui a execução da imagem no Docker.
+Em 10/11/2026, o mecanismo Linux do Docker Desktop está funcionando. A imagem `adsync:local` foi construída com sucesso pelo Dockerfile e executada em um container temporário na porta 5130, com credenciais fictícias, somente leitura, seed e agendador desligados. O teste `tests/container-host.cjs` passou contra esse container, incluindo carregamento do WASM e recarga offline. Os dois arquivos Compose passaram por `docker compose config --quiet`. O container de teste foi encerrado; a imagem foi exportada para `artifacts/adsync-docker/adsync.tar`, acompanhada do Compose portátil, modelo de configuração e instruções. O teste não acessou o Supabase nem validou login com conta real. A execução física na outra máquina depende de importar o pacote e fornecer a configuração privada.

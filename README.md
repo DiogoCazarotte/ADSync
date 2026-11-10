@@ -4,6 +4,8 @@ Frontend no VS Code com Tailwind CSS e daisyUI: [guia de edição e execução](
 
 Executar API e interface em um container Docker: [guia passo a passo](docs/DOCKER.md).
 
+Levar a imagem pronta em um pendrive e rodar em outro computador: [guia para outra máquina](docs/OUTRA-MAQUINA.md).
+
 Painel de indicadores do gestor: métricas, comparação entre períodos, gráficos e filtros. [Critérios de cálculo e testes isolados](docs/INDICADORES.md).
 
 > Documentação em evolução: partes históricas abaixo ainda descrevem etapas anteriores. A gestão dos planos preventivos foi completada na interface; funcionamento, limites da geração automática e teste isolado em [docs/PREVENTIVAS.md](docs/PREVENTIVAS.md).
