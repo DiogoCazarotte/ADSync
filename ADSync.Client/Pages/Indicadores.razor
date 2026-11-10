@@ -1,0 +1,164 @@
+@using System.Globalization
+@using ADSync.Application.DTOs
+@using ADSync.Client.Services
+@inject ManutencaoClient Client
+
+<section class="indicators" aria-labelledby="indicators-title" aria-busy="@working.ToString().ToLowerInvariant()">
+    <header class="indicators-heading">
+        <div><span class="indicators-eyebrow">GESTÃO DA MANUTENÇÃO</span><h1 id="indicators-title">Indicadores</h1><p>Acompanhe as conclusões, o esforço de reparo e a participação das preventivas.</p></div>
+        <span class="indicators-heading-icon"><AppIcon Name="chart" /></span>
+    </header>
+    <fieldset class="workspace indicators-filters" disabled="@working">
+        <legend class="indicators-sr-only">Filtros dos indicadores</legend>
+        <div class="indicators-presets" aria-label="Períodos rápidos">
+            @foreach (var days in new[] { 7, 30, 90 })
+            {
+                <button type="button" class="@(IsPeriod(days) ? "selected" : "")" aria-pressed="@IsPeriod(days).ToString().ToLowerInvariant()" @onclick="() => Period(days)">Últimos @days dias</button>
+            }
+        </div>
+        <form class="indicators-filter-fields" @onsubmit="Refresh" @onsubmit:preventDefault>
+            <label>Data inicial<input type="date" @bind="start" required /></label>
+            <label>Data final<input type="date" @bind="end" required /></label>
+            <label>Setor<select aria-label="Setor" @bind="sector"><option value="">Todos os setores</option>@foreach (var item in Sectors) { <option value="@item">@item</option> }</select></label>
+            <button type="submit"><AppIcon Name="refresh" />@(working ? "Consultando…" : "Aplicar filtros")</button>
+        </form>
+    </fieldset>
+    @if (!string.IsNullOrEmpty(error)) { <p class="message" role="alert">@error</p> }
+    @if (working) { <p class="indicators-status" role="status">Consultando indicadores…</p> }
+    @if (data is { } report)
+    {
+        <div class="indicators-context">
+            <strong>@Date(report.DataInicio) a @Date(report.DataFim) · @(report.Setor ?? "Todos os setores")</strong>
+            <span>Conclusões por data UTC · @report.Geral.TotalConcluidas O.S.</span>
+        </div>
+        @if (report.Anterior is not null)
+        {
+            <p class="indicators-comparison">Comparação com @Date(report.DataInicioAnterior!.Value) a @Date(report.DataFimAnterior!.Value), com a mesma duração e o mesmo setor.</p>
+        }
+        <div class="indicators-metrics">
+            @foreach (var metric in Metrics(report))
+            {
+                <article class="indicator-metric">
+                    <h2>@metric.Label</h2><p class="indicator-value">@metric.Value <span>@metric.Unit</span></p>
+                    <p class="indicator-change">@metric.Change</p><p class="indicator-note">@metric.Note</p>
+                </article>
+            }
+        </div>
+        @if (report.Geral.TotalConcluidas == 0)
+        {
+            <div class="indicators-empty" role="status"><AppIcon Name="calendar" /><h2>Nenhuma O.S. concluída neste período</h2><p>Amplie as datas ou escolha outro setor para consultar o histórico.</p></div>
+        }
+        else
+        {
+            @if (report.Geral.CorretivasSemTempo > 0)
+            {
+                <p class="indicators-quality"><strong>Atenção à qualidade dos dados:</strong> @report.Geral.CorretivasSemTempo corretiva(s) sem sequência válida de início, pausas e conclusão. Elas entram nas contagens, mas ficam fora do MTTR.</p>
+            }
+            <div class="indicators-charts">
+                <figure class="indicator-panel indicators-trend">
+                    <figcaption><h2>Evolução das conclusões</h2><p>@(report.EvolucaoMensal ? "Por mês · primeiro e último mês respeitam as datas do filtro" : "Por dia · inclui dias sem conclusões")</p></figcaption>
+                    <div class="indicators-legend"><span><i class="indicator-preventive"></i>Preventivas</span><span><i class="indicator-corrective"></i>Corretivas</span></div>
+                    <div class="indicators-chart-scroll" tabindex="0" role="region" aria-label="Evolução das conclusões; use a rolagem para ver todo o período">
+                        <div class="indicators-bars">
+                            @foreach (var point in report.Evolucao)
+                            {
+                                <div class="indicator-column" title="@PointDescription(point, report.EvolucaoMensal)">
+                                    <span class="indicator-bar-total">@(point.Preventivas + point.Corretivas)</span>
+                                    <div class="indicator-bar-track" aria-hidden="true">
+                                        <span class="indicator-corrective" style="height: @Height(point.Corretivas, report)%"></span>
+                                        <span class="indicator-preventive" style="height: @Height(point.Preventivas, report)%"></span>
+                                    </div>
+                                    <span class="indicator-bar-label">@point.Data.ToString(report.EvolucaoMensal ? "MMM/yy" : "dd/MM", Pt)</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <details class="indicators-chart-data"><summary>Ver valores do gráfico</summary><div class="indicators-table-scroll"><table><caption class="indicators-sr-only">Conclusões por período</caption><thead><tr><th scope="col">Data</th><th scope="col">Preventivas</th><th scope="col">Corretivas</th></tr></thead><tbody>@foreach (var point in report.Evolucao) { <tr><th scope="row">@point.Data.ToString(report.EvolucaoMensal ? "MM/yyyy" : "dd/MM/yyyy", Pt)</th><td>@point.Preventivas</td><td>@point.Corretivas</td></tr> }</tbody></table></div></details>
+                </figure>
+                <section class="indicator-panel indicators-mix" aria-labelledby="mix-title">
+                    <h2 id="mix-title">Perfil das manutenções</h2><p>Distribuição das O.S. concluídas</p>
+                    <p class="indicator-mix-value">@Number(report.Geral.PercentualPreventiva)<span>% preventivas</span></p>
+                    <div class="indicators-mix-bar" aria-hidden="true"><span class="indicator-preventive" style="width: @Invariant(report.Geral.PercentualPreventiva ?? 0)%"></span></div>
+                    <dl><div><dt><i class="indicator-preventive"></i>Preventivas</dt><dd>@report.Geral.TotalPreventivas</dd></div><div><dt><i class="indicator-corrective"></i>Corretivas</dt><dd>@report.Geral.TotalCorretivas</dd></div></dl>
+                    <p class="indicator-note">A participação considera as conclusões do período, incluindo planos preventivos executados.</p>
+                </section>
+            </div>
+            <div class="indicators-details">
+                <section class="indicator-panel" aria-labelledby="sectors-title">
+                    <h2 id="sectors-title">Resultado por setor</h2><p>Compare o volume e o tempo de trabalho ativo.</p>
+                    <div class="indicators-table-scroll" tabindex="0" role="region" aria-label="Resultados por setor">
+                        <table><caption class="indicators-sr-only">Indicadores das ordens concluídas por setor</caption><thead><tr><th scope="col">Setor</th><th scope="col">Concluídas</th><th scope="col">Preventivas</th><th scope="col">Corretivas</th><th scope="col">% prev.</th><th scope="col">MTTR (min)</th></tr></thead><tbody>
+                        @foreach (var item in report.PorSetor.OrderByDescending(s => s.TotalCorretivas).ThenBy(s => s.Setor))
+                        {
+                            <tr><th scope="row">@item.Setor</th><td>@item.TotalConcluidas</td><td>@item.TotalPreventivas</td><td>@item.TotalCorretivas</td><td>@Number(item.PercentualPreventiva)%</td><td>@Number(item.MttrMinutos)<small>@item.AmostraMttr O.S. na amostra</small></td></tr>
+                        }
+                        </tbody></table>
+                    </div>
+                </section>
+                <section class="indicator-panel" aria-labelledby="equipment-title">
+                    <h2 id="equipment-title">Equipamentos com mais corretivas</h2><p>Até 5 equipamentos · corretivas concluídas</p>
+                    @if (report.Equipamentos.Count == 0) { <p class="indicators-status">Nenhuma corretiva concluída no período.</p> }
+                    <ol class="indicators-ranking">
+                    @foreach (var item in report.Equipamentos)
+                    {
+                        <li><div><strong>@item.Nome</strong><small>@item.Setor · MTTR @Number(item.MttrMinutos) min</small></div><span>@item.Corretivas <small>O.S.</small></span></li>
+                    }
+                    </ol>
+                </section>
+            </div>
+        }
+        <details class="indicators-method"><summary>Como estes indicadores são calculados</summary>
+            <ul><li><strong>Período:</strong> O.S. concluídas entre 00h UTC da data inicial e o fim da data final. Dias e meses no gráfico usam UTC. Ordens abertas ou canceladas ficam fora deste painel.</li>
+                <li><strong>Preventivas:</strong> quantidade de preventivas dividida pelo total de conclusões. A diferença entre percentuais é exibida em pontos percentuais (p.p.).</li>
+                <li><strong>MTTR de trabalho ativo:</strong> média dos trechos entre início/retomada e pausa/conclusão nas corretivas com sequência válida de registros. Desconta pausas e espera antes do início; não mede toda a indisponibilidade.</li>
+                <li><strong>Intervalo entre chamados:</strong> média dos intervalos entre aberturas consecutivas de corretivas do mesmo equipamento, considerando apenas as concluídas no período. Não corresponde ao MTBF baseado em horas reais de operação.</li>
+                <li><strong>Comparação:</strong> período imediatamente anterior com o mesmo número de dias e filtro de setor. “—” significa ausência de amostra; “sem base comparável” indica que um dos períodos não possui a métrica.</li></ul>
+        </details>
+    }
+    else if (!working) { <p class="indicators-status">Aplique os filtros para carregar os indicadores.</p> }
+</section>
+
+@code {
+    [Parameter] public IEnumerable<string> Setores { get; set; } = [];
+    static readonly CultureInfo Pt = CultureInfo.GetCultureInfo("pt-BR");
+    DateTime start = DateTime.UtcNow.Date.AddDays(-29), end = DateTime.UtcNow.Date;
+    string sector = "", error = "";
+    bool working;
+    IndicadoresDto? data;
+    IEnumerable<string> Sectors => Setores.Concat(data?.SetoresDisponiveis ?? []).Append(sector)
+        .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s);
+    protected override Task OnInitializedAsync() => Refresh();
+    public async Task Refresh()
+    {
+        if (working || !Client.Role("Gestor")) return;
+        error = "";
+        if (start > end) { error = "A data inicial deve ser menor ou igual à data final."; return; }
+        if (end.Date == DateTime.MaxValue.Date) { error = "A data final deve ser até 30/12/9999."; return; }
+        working = true;
+        try
+        {
+            data = await Client.GetOnlineAsync<IndicadoresDto>($"api/indicadores?dataInicio={start:yyyy-MM-dd}&dataFim={end:yyyy-MM-dd}&setor={Uri.EscapeDataString(sector)}");
+        }
+        catch (Exception ex) { error = $"Não foi possível atualizar os indicadores. {ex.Message}" + (data is null ? "" : " O resultado da consulta anterior continua exibido com suas datas originais."); }
+        finally { working = false; }
+    }
+    bool IsPeriod(int days) => end.Date == DateTime.UtcNow.Date && start.Date == end.Date.AddDays(1 - days);
+    Task Period(int days) { end = DateTime.UtcNow.Date; start = end.AddDays(1 - days); return Refresh(); }
+    static string Date(DateOnly date) => date.ToString("dd/MM/yyyy", Pt);
+    static string Number(double? value) => value?.ToString("N1", Pt) ?? "—";
+    static string Invariant(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+    static string Height(int value, IndicadoresDto report) => Invariant(value * 100.0 / Math.Max(1, report.Evolucao.Max(p => p.Preventivas + p.Corretivas)));
+    static string PointDescription(IndicadorEvolucaoDto point, bool monthly) => $"{point.Data.ToString(monthly ? "MM/yyyy" : "dd/MM/yyyy", Pt)}: {point.Preventivas} preventivas e {point.Corretivas} corretivas";
+    static string Change(double? current, double? previous, string unit) => current.HasValue && previous.HasValue
+        ? Math.Round(current.Value - previous.Value, 1) == 0 ? "Sem variação no período" : $"{(current > previous ? "+" : "−")}{Number(Math.Abs(current.Value - previous.Value))} {unit} em relação ao anterior"
+        : "Sem base comparável";
+    record Metric(string Label, string Value, string Unit, string Change, string Note);
+    static IEnumerable<Metric> Metrics(IndicadoresDto report)
+    {
+        var r = report.Geral; var p = report.Anterior;
+        yield return new("O.S. concluídas", r.TotalConcluidas.ToString("N0", Pt), "O.S.", Change(r.TotalConcluidas, p?.TotalConcluidas, "O.S."), $"{r.TotalPreventivas} preventivas · {r.TotalCorretivas} corretivas");
+        yield return new("Participação preventiva", Number(r.PercentualPreventiva), "%", Change(r.PercentualPreventiva, p?.PercentualPreventiva, "p.p."), "Preventivas sobre o total de conclusões");
+        yield return new("MTTR · trabalho ativo", Number(r.MttrMinutos), "min", Change(r.MttrMinutos, p?.MttrMinutos, "min"), $"Amostra: {r.AmostraMttr} corretiva(s) com registros válidos");
+        yield return new("Intervalo entre chamados", Number(r.MtbfDias), "dias", Change(r.MtbfDias, p?.MtbfDias, "dias"), $"Amostra: {r.AmostraIntervalos} intervalo(s) do mesmo equipamento");
+    }
+}

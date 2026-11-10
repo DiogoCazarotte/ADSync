@@ -365,3 +365,8 @@ FodyWeavers.xsd
 .local-demo/
 node_modules/
 tests/artifacts/
+
+# Configuração privada do Docker e outros arquivos de ambiente.
+.env
+.env.*
+!.env.docker.example

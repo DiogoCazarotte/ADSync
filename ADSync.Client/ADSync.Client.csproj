@@ -21,7 +21,7 @@
 
   <Target Name="BuildFrontendStyles" BeforeTargets="PrepareForBuild"
           Inputs="Styles/app.css;@(RazorComponent);../package.json;../package-lock.json"
-          Outputs="wwwroot/css/app.css" Condition="'$(DesignTimeBuild)' != 'true'">
+          Outputs="wwwroot/css/app.css" Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipFrontendStyles)' != 'true'">
     <PropertyGroup>
       <FrontendNpm Condition="'$(OS)' == 'Windows_NT'">npm.cmd</FrontendNpm>
       <FrontendNpm Condition="'$(OS)' != 'Windows_NT'">npm</FrontendNpm>

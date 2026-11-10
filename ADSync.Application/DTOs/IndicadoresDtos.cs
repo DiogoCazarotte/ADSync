@@ -10,15 +10,17 @@ public class IndicadorResumoDto
     // % de manutenção preventiva no total de O.S. concluídas. Null se não houve nenhuma no período.
     public double? PercentualPreventiva { get; set; }
 
-    // MTTR: tempo médio de reparo, em minutos. Calculado só sobre as CORRETIVAS
-    // (é o tempo médio para consertar uma falha). Null se não houve corretiva concluída.
+    // Média de trabalho ativo nas corretivas concluídas com sequência válida de
+    // início/retomada e pausa/conclusão. Null quando não há amostra válida.
     public double? MttrMinutos { get; set; }
+    public int AmostraMttr { get; set; }
+    public int CorretivasSemTempo { get; set; }
 
-    // MTBF: tempo médio entre falhas, em dias. Calculado só sobre as CORRETIVAS, por
-    // equipamento (diferença entre as aberturas de falhas seguidas do mesmo equipamento),
-    // e depois a média de todos esses intervalos. Null se não há pelo menos 2 corretivas
-    // do mesmo equipamento no período.
+    // Nome preservado por compatibilidade com a API. É o intervalo entre aberturas
+    // consecutivas das corretivas concluídas no período, por equipamento, em dias;
+    // não usa horas reais de operação. Null quando não há ao menos um intervalo.
     public double? MtbfDias { get; set; }
+    public int AmostraIntervalos { get; set; }
 }
 
 public class IndicadorPorSetorDto : IndicadorResumoDto
@@ -35,4 +37,28 @@ public class IndicadoresDto
     // Geral já reflete só aquele setor, e PorSetor terá uma única linha igual a Geral).
     public IndicadorResumoDto Geral { get; set; } = new();
     public List<IndicadorPorSetorDto> PorSetor { get; set; } = new();
+    public DateOnly? DataInicioAnterior { get; set; }
+    public DateOnly? DataFimAnterior { get; set; }
+    public IndicadorResumoDto? Anterior { get; set; }
+    public string? Setor { get; set; }
+    public List<string> SetoresDisponiveis { get; set; } = new();
+    public bool EvolucaoMensal { get; set; }
+    public List<IndicadorEvolucaoDto> Evolucao { get; set; } = new();
+    public List<IndicadorEquipamentoDto> Equipamentos { get; set; } = new();
+}
+
+public class IndicadorEvolucaoDto
+{
+    public DateOnly Data { get; set; }
+    public int Preventivas { get; set; }
+    public int Corretivas { get; set; }
+}
+
+public class IndicadorEquipamentoDto
+{
+    public Guid EquipamentoId { get; set; }
+    public string Nome { get; set; } = string.Empty;
+    public string Setor { get; set; } = string.Empty;
+    public int Corretivas { get; set; }
+    public double? MttrMinutos { get; set; }
 }

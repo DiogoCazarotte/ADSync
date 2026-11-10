@@ -21,10 +21,13 @@ public class IndicadoresController : ControllerBase
         [FromQuery] DateOnly? dataInicio, [FromQuery] DateOnly? dataFim, [FromQuery] string? setor)
     {
         var fim = dataFim ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        var inicio = dataInicio ?? fim.AddDays(-30);
+        var inicio = dataInicio ?? DateOnly.FromDayNumber(Math.Max(0, fim.DayNumber - 29));
 
         if (inicio > fim)
             return BadRequest(new { mensagem = "A data inicial deve ser menor ou igual à data final." });
+
+        if (fim == DateOnly.MaxValue)
+            return BadRequest(new { mensagem = "A data final deve ser até 30/12/9999." });
 
         return Ok(await _service.ObterAsync(inicio, fim, setor));
     }

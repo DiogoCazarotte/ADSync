@@ -1,0 +1,20 @@
+name: adsync
+services:
+  app:
+    image: adsync:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - path: .env.docker
+        format: raw
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      Hosting__ServeClient: "true"
+      # HTTP somente no computador local. Um servidor público deve usar HTTPS.
+      Hosting__UseHttpsRedirection: "false"
+      Seed__Enabled: "false"
+    restart: unless-stopped

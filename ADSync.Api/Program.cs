@@ -16,8 +16,11 @@ using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Npgsql.NameTranslation;
 using ADSync.Infrastructure.Safety;
+using ADSync.Api.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
+// No Docker, o cliente publicado fica em /app/client e usa a mesma origem da API.
+var serveClient = builder.Configuration.GetValue("Hosting:ServeClient", false);
 var readOnly = builder.Configuration.GetValue("Safety:ReadOnly", true);
 var seedEnabled = builder.Configuration.GetValue("Seed:Enabled", false);
 var preventiveEnabled = builder.Configuration.GetValue("Preventivas:GeracaoAutomaticaHabilitada", false);
@@ -163,7 +166,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 
-if (!app.Environment.IsDevelopment()) app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment() && app.Configuration.GetValue("Hosting:UseHttpsRedirection", true))
+    app.UseHttpsRedirection();
+
+if (serveClient) app.UsePublishedClient();
 
 app.UseCors("Client");
 
@@ -190,5 +196,7 @@ app.MapGet("/api/runtime", () => new { readOnly, seedEnabled, preventiveEnabled,
     technicalOfflineEnabled = !readOnly && app.Configuration.GetValue("Offline:Enabled", false) });
 
 app.MapControllers();
+
+if (serveClient) app.MapPublishedClientFallback();
 
 app.Run();

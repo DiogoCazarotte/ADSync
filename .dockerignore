@@ -1,0 +1,24 @@
+# Lista de inclusão: credenciais, .local-demo, Git e testes não entram no build.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!package-lock.json
+!ADSync.Domain/
+!ADSync.Domain/**
+!ADSync.Application/
+!ADSync.Application/**
+!ADSync.Infrastructure/
+!ADSync.Infrastructure/**
+!ADSync.Api/
+!ADSync.Api/**
+!ADSync.Client/
+!ADSync.Client/**
+**/bin
+**/obj
+**/node_modules
+**/Properties/launchSettings.json
+**/appsettings.Development.json
+**/*.user
+**/secrets.json
+**/.env*
