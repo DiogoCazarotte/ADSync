@@ -85,8 +85,50 @@ var defaultRange = (IndicadoresDto)((OkObjectResult)(await controller.Obter(null
 Check(defaultRange.DataFim.DayNumber - defaultRange.DataInicio.DayNumber == 29, "Padrão não tem exatamente 30 dias inclusivos.");
 Console.WriteLine("PASS: registros incompletos/inválidos, extremos de datas e validação HTTP.");
 
+// MTBF usa falhas abertas na janela, inclusive não concluídas; horas e falhas
+// de equipamentos com lacunas nunca entram parcialmente na amostra.
+var mtbfA = new Equipamento { Id = Guid.NewGuid(), Nome = "Costura", Setor = "Costura" };
+var mtbfB = new Equipamento { Id = Guid.NewGuid(), Nome = "Ensacadeira", Setor = "Envase" };
+var mtbfC = new Equipamento { Id = Guid.NewGuid(), Nome = "Sem registros", Setor = "Envase" };
+var failure = Order(mtbfA, "2026-11-01T12:00:00", "2026-11-03T12:00:00");
+failure.Status = StatusOS.EmAndamento;
+var excludedFailure = Order(mtbfB, "2026-11-02T12:00:00", "2026-11-03T12:00:00");
+var cancelledFailure = Order(mtbfA, "2026-11-02T12:00:00", "2026-11-03T12:00:00");
+cancelledFailure.Status = StatusOS.Cancelada;
+var mtbfRepo = new MemoryIndicators([failure, excludedFailure, cancelledFailure,
+    Order(mtbfA, "2026-11-02T12:00:00", "2026-11-03T12:00:00", TipoManutencao.Preventiva)])
+{
+    MtbfHabilitado = true, Equipamentos = [mtbfA, mtbfB, mtbfC],
+    Operacoes = [
+        new() { EquipamentoId = mtbfA.Id, Data = new(2026, 11, 1), HorasOperadas = 8 },
+        new() { EquipamentoId = mtbfA.Id, Data = new(2026, 11, 2), HorasOperadas = 0 },
+        new() { EquipamentoId = mtbfB.Id, Data = new(2026, 11, 1), HorasOperadas = 24 },
+        new() { EquipamentoId = mtbfA.Id, Data = new(2026, 10, 30), HorasOperadas = 10 },
+        new() { EquipamentoId = mtbfA.Id, Data = new(2026, 10, 31), HorasOperadas = 10 }
+    ]
+};
+var mtbf = await new IndicadoresService(mtbfRepo).ObterAsync(new(2026, 11, 1), new(2026, 11, 2), null);
+Check(mtbf.MtbfHabilitado && mtbf.Geral.MtbfHoras == 8 && mtbf.Geral.HorasOperadas == 8 && mtbf.Geral.FalhasMtbf == 1,
+    "MTBF incluiu preventiva, cancelada, equipamento incompleto ou ignorou falha em andamento.");
+Check(mtbf.Geral.EquipamentosMtbf == 1 && mtbf.Geral.EquipamentosSemCobertura == 2, "Cobertura não distingue zero de ausência de lançamento.");
+Check(mtbf.Geral.TotalConcluidas == 0 && mtbf.Geral.MtbfHoras.HasValue, "MTBF depende indevidamente de conclusões.");
+Check(mtbf.Anterior!.HorasOperadas == 20 && mtbf.Anterior.MtbfHoras is null, "Período sem falhas fabricou MTBF.");
+var mtbfSector = await new IndicadoresService(mtbfRepo).ObterAsync(new(2026, 11, 1), new(2026, 11, 2), " ENVASE ");
+Check(mtbfSector.Geral.MtbfHoras is null && mtbfSector.Geral.HorasOperadas == 0 && mtbfSector.Geral.EquipamentosSemCobertura == 2,
+    "Filtro MTBF deixou horas ou falhas de outro setor entrarem na amostra.");
+mtbfRepo.Operacoes[0].HorasOperadas = 0;
+var noHours = await new IndicadoresService(mtbfRepo).ObterAsync(new(2026, 11, 1), new(2026, 11, 2), null);
+Check(noHours.Geral.MtbfHoras is null && noHours.Geral.FalhasMtbf == 1, "Falha sem horas gerou MTBF zero.");
+Console.WriteLine("PASS: MTBF por operação, cobertura completa, zero explícito, falhas abertas, filtros, comparação e ausência de base.");
+
 sealed class MemoryIndicators(List<OrdemServico> items) : IIndicadoresRepository
 {
+    public bool MtbfHabilitado { get; init; }
+    public List<Equipamento> Equipamentos { get; init; } = [];
+    public List<OperacaoDiaria> Operacoes { get; init; } = [];
+    public Task<List<Equipamento>> ListarEquipamentosMtbfAsync() => Task.FromResult(Equipamentos);
+    public Task<List<OperacaoDiaria>> ListarOperacoesAsync(DateOnly inicio, DateOnly fim) => Task.FromResult(Operacoes.Where(o => o.Data >= inicio && o.Data <= fim).ToList());
+    public Task<List<OrdemServico>> ListarFalhasAsync(DateTimeOffset inicio, DateTimeOffset fim) => Task.FromResult(items.Where(o => o.TipoManutencao == TipoManutencao.Corretiva && o.Status != StatusOS.Cancelada && o.DataAbertura >= inicio && o.DataAbertura < fim).ToList());
     public Task<List<OrdemServico>> ListarConcluidasAsync(DateTimeOffset start, DateTimeOffset end) => Task.FromResult(items.Where(o =>
         o.Status == StatusOS.Concluida && o.DataConclusao >= start && o.DataConclusao < end).ToList());
 }

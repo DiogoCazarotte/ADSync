@@ -15,6 +15,9 @@ using ADSync.Infrastructure.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using ADSync.Domain.Interfaces;
+using ADSync.Api.Controllers;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Mvc;
 
 // Banco descartável com nome único, somente no PostgreSQL portátil de testes.
 // Não lê User Secrets nem aceita uma conexão externa.
@@ -49,6 +52,8 @@ try
         // Valida o mesmo script que será revisado para o Supabase, apenas neste banco novo.
         await setup.Database.ExecuteSqlRawAsync("DROP TABLE os_eventos_sincronizados");
         await setup.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync("docs/sql/ATENDIMENTO-OFFLINE.sql"));
+        await setup.Database.ExecuteSqlRawAsync("DROP TABLE equipamento_operacao_diaria");
+        await setup.Database.ExecuteSqlRawAsync(await File.ReadAllTextAsync("docs/sql/MTBF.sql"));
     }
     await using (var refresh = await source.OpenConnectionAsync()) await refresh.ReloadTypesAsync();
     var owner = Guid.NewGuid(); var a = Guid.NewGuid(); var b = Guid.NewGuid(); var inactive = Guid.NewGuid(); var equipment = Guid.NewGuid();
@@ -67,6 +72,37 @@ try
         db.Equipamentos.Add(new Equipamento { Id = equipment, Nome = "Teste", CodigoPatrimonio = "TESTE", Setor = "Teste" });
         await db.SaveChangesAsync();
     }
+    var mtbfConfig = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Mtbf:Enabled"] = "true" }).Build();
+    var mtbfDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
+    await using (var db = new AdSyncDbContext(options))
+    {
+        var controller = new OperacaoDiariaController(db, mtbfConfig);
+        Check((await controller.Salvar(equipment, mtbfDate, new() { HorasOperadas = 8 })).Result is OkObjectResult, "Horas não foram gravadas.");
+        Check((await controller.Salvar(equipment, mtbfDate, new() { HorasOperadas = 12 })).Result is OkObjectResult, "Correção de horas falhou.");
+        Check(await db.OperacoesDiarias.CountAsync() == 1 && (await db.OperacoesDiarias.SingleAsync()).HorasOperadas == 12, "Reenvio acumulou ou duplicou horas.");
+        foreach (var hours in new[] { -1m, 25m, 1.001m })
+            Check((await controller.Salvar(equipment, mtbfDate, new() { HorasOperadas = hours })).Result is BadRequestObjectResult, "Horas inválidas aceitas.");
+        Check((await controller.Salvar(equipment, mtbfDate.AddDays(2), new())).Result is BadRequestObjectResult, "Data futura aceita.");
+        Check((await controller.Salvar(Guid.NewGuid(), mtbfDate, new())).Result is NotFoundObjectResult, "Equipamento inexistente aceito.");
+        Check((await controller.Listar(mtbfDate.AddDays(1), mtbfDate)).Result is BadRequestObjectResult, "Consulta invertida aceita.");
+        mtbfConfig["Safety:ReadOnly"] = "true";
+        Check((await controller.Salvar(equipment, mtbfDate, new())).Result is ObjectResult { StatusCode: 403 }, "Somente leitura permitiu SQL direto.");
+        mtbfConfig["Safety:ReadOnly"] = "false"; mtbfConfig["Mtbf:Enabled"] = "false";
+        Check((await controller.Salvar(equipment, mtbfDate, new())).Result is ConflictObjectResult, "Recurso desabilitado permitiu escrita.");
+        mtbfConfig["Mtbf:Enabled"] = "true";
+    }
+    await Task.WhenAll(Enumerable.Range(0, 6).Select(async _ =>
+    {
+        await using var db = new AdSyncDbContext(options);
+        await new OperacaoDiariaController(db, mtbfConfig).Salvar(equipment, mtbfDate, new() { HorasOperadas = 10 });
+    }));
+    await using (var db = new AdSyncDbContext(options))
+    {
+        Check(await db.OperacoesDiarias.CountAsync() == 1, "Envios concorrentes duplicaram o dia.");
+        var result = await new IndicadoresService(new IndicadoresRepository(db, mtbfConfig)).ObterAsync(mtbfDate, mtbfDate, null);
+        Check(result.Geral.HorasOperadas == 10 && result.Geral.EquipamentosMtbf == 1 && result.Geral.MtbfHoras is null, "Repositório MTBF não leu horas ou inventou falhas.");
+    }
+    Console.WriteLine("PASS: script MTBF, lançamento/correção, concorrência, validação, leitura e bloqueios sem Supabase.");
     var unassigned = await Open(Draft());
     await using (var db = new AdSyncDbContext(options))
     {

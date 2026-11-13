@@ -44,6 +44,23 @@
                 </article>
             }
         </div>
+        @if (report.MtbfHabilitado)
+        {
+            <section class="indicator-panel" aria-label="MTBF por horas de operação">
+                <h2>MTBF · horas de operação</h2>
+                <p class="indicator-value">@Number(report.Geral.MtbfHoras) <span>h</span></p>
+                <p>@Change(report.Geral.MtbfHoras, report.Anterior?.MtbfHoras, "h")</p>
+                <p>@report.Geral.HorasOperadas.ToString("N2", Pt) horas operadas · @report.Geral.FalhasMtbf falha(s) · @report.Geral.EquipamentosMtbf equipamento(s) com todos os dias registrados.</p>
+                @if (report.Geral.EquipamentosSemCobertura > 0) { <p class="indicators-quality">@report.Geral.EquipamentosSemCobertura equipamento(s) excluído(s) por falta de registros diários. Complete os dias, inclusive aqueles sem operação.</p> }
+                @if (report.Geral.MtbfHoras is null) { <p>Sem base para calcular: são necessárias horas de operação e ao menos uma falha nos equipamentos com cobertura completa.</p> }
+                <p>Horas efetivamente operadas ÷ corretivas abertas no período (inclui as ainda em atendimento; exclui canceladas). Cada corretiva representa uma falha.</p>
+            </section>
+            <OperacaoDiaria OnSaved="Refresh" />
+        }
+        else
+        {
+            <p class="indicators-status">O MTBF por horas de operação aguarda habilitação do registro diário neste ambiente.</p>
+        }
         @if (report.Geral.TotalConcluidas == 0)
         {
             <div class="indicators-empty" role="status"><AppIcon Name="calendar" /><h2>Nenhuma O.S. concluída neste período</h2><p>Amplie as datas ou escolha outro setor para consultar o histórico.</p></div>

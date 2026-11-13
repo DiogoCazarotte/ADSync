@@ -21,6 +21,11 @@ public class IndicadorResumoDto
     // não usa horas reais de operação. Null quando não há ao menos um intervalo.
     public double? MtbfDias { get; set; }
     public int AmostraIntervalos { get; set; }
+    public double? MtbfHoras { get; set; }
+    public decimal HorasOperadas { get; set; }
+    public int FalhasMtbf { get; set; }
+    public int EquipamentosMtbf { get; set; }
+    public int EquipamentosSemCobertura { get; set; }
 }
 
 public class IndicadorPorSetorDto : IndicadorResumoDto
@@ -30,6 +35,7 @@ public class IndicadorPorSetorDto : IndicadorResumoDto
 
 public class IndicadoresDto
 {
+    public bool MtbfHabilitado { get; set; }
     public DateOnly DataInicio { get; set; }
     public DateOnly DataFim { get; set; }
 

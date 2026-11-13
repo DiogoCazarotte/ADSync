@@ -1,0 +1,90 @@
+@using ADSync.Application.DTOs
+@using ADSync.Client.Services
+@inject ManutencaoClient Client
+
+<section class="indicator-panel" aria-labelledby="operation-title">
+    <h2 id="operation-title">Horas de operação dos equipamentos</h2>
+    <p>Registre as horas efetivamente operadas em cada dia (UTC), descontando paradas. Informe zero nos dias sem operação. Salvar novamente substitui o total daquele equipamento no dia.</p>
+    <fieldset disabled="@busy">
+        <legend>Consultar um dia</legend>
+        <label>Data da operação<input type="date" @bind="day" max="@DateTime.UtcNow.ToString("yyyy-MM-dd")" /></label>
+        <button type="button" @onclick="Load">Consultar registros</button>
+    </fieldset>
+    @if (error.Length > 0) { <p class="message" role="alert">@error</p> }
+    @if (message.Length > 0) { <p class="message" role="status">@message</p> }
+    @if (!Client.ReadOnlyMode)
+    {
+        <EditForm Model="draft" OnValidSubmit="Save">
+            <DataAnnotationsValidator /><ValidationSummary />
+            <fieldset disabled="@(busy || !loadedDay.HasValue || DateOnly.FromDateTime(day) != loadedDay)">
+                <legend>Lançar ou corrigir horas</legend>
+                <label>Equipamento<select @bind="equipmentId"><option value="@Guid.Empty">Selecione</option>@foreach (var item in equipment) { <option value="@item.Id">@item.Nome · @item.CodigoPatrimonio</option> }</select></label>
+                <label>Horas operadas<InputNumber @bind-Value="draft.HorasOperadas" min="0" max="24" step="0.01" /></label>
+                <button type="submit">@(busy ? "Salvando…" : "Salvar horas do dia")</button>
+            </fieldset>
+        </EditForm>
+    }
+    @if (loadedDay.HasValue)
+    {
+        <p>Registros de @loadedDay.Value.ToString("dd/MM/yyyy"). Sem registro não significa zero horas.</p>
+        <div class="indicators-table-scroll"><table><thead><tr><th>Equipamento</th><th>Horas operadas</th><th></th></tr></thead><tbody>
+        @foreach (var item in equipment)
+        {
+            var record = records.FirstOrDefault(r => r.EquipamentoId == item.Id);
+            <tr><th scope="row">@item.Nome</th><td>@(record is null ? "Sem registro" : record.HorasOperadas.ToString("N2"))</td><td>
+            @if (!Client.ReadOnlyMode) { <button type="button" disabled="@busy" @onclick="() => Edit(item.Id, record)">@(record is null ? "Registrar" : "Corrigir")</button> }
+            </td></tr>
+        }
+        </tbody></table></div>
+    }
+</section>
+
+@code {
+    [Parameter] public EventCallback OnSaved { get; set; }
+    DateTime day = DateTime.UtcNow.Date.AddDays(-1);
+    DateOnly? loadedDay;
+    Guid equipmentId;
+    SalvarOperacaoDiariaDto draft = new();
+    List<EquipamentoDto> equipment = [];
+    List<OperacaoDiariaDto> records = [];
+    string error = "", message = "";
+    bool busy;
+    protected override Task OnInitializedAsync() => Load();
+    async Task Load()
+    {
+        if (busy) return;
+        busy = true; error = ""; message = "";
+        try
+        {
+            var selected = DateOnly.FromDateTime(day);
+            var items = await Client.GetOnlineAsync<List<EquipamentoDto>>("api/equipamentos?incluirInativos=true");
+            var rows = await Client.GetOnlineAsync<List<OperacaoDiariaDto>>($"api/operacao-diaria?dataInicio={selected:yyyy-MM-dd}&dataFim={selected:yyyy-MM-dd}");
+            equipment = items.OrderBy(e => e.Nome).ToList(); records = rows; loadedDay = selected;
+            equipmentId = Guid.Empty; draft = new();
+        }
+        catch (Exception ex) { error = $"Não foi possível consultar os registros. {ex.Message}"; }
+        finally { busy = false; }
+    }
+    void Edit(Guid id, OperacaoDiariaDto? record)
+    {
+        if (loadedDay != DateOnly.FromDateTime(day)) { error = "Consulte a data selecionada antes de editar."; return; }
+        equipmentId = id; draft = new() { HorasOperadas = record?.HorasOperadas ?? 0 }; message = "";
+    }
+    async Task Save()
+    {
+        if (busy || Client.ReadOnlyMode) return;
+        error = ""; message = "";
+        if (equipmentId == Guid.Empty) { error = "Selecione um equipamento."; return; }
+        if (loadedDay != DateOnly.FromDateTime(day)) { error = "Consulte a data selecionada antes de salvar."; return; }
+        busy = true;
+        try
+        {
+            var saved = await Client.PutAsync<OperacaoDiariaDto>($"api/operacao-diaria/{equipmentId}/{loadedDay:yyyy-MM-dd}", draft);
+            records.RemoveAll(r => r.EquipamentoId == saved.EquipamentoId); records.Add(saved);
+            message = "Horas salvas. O MTBF considera somente equipamentos com todos os dias do período registrados.";
+            await OnSaved.InvokeAsync();
+        }
+        catch (Exception ex) { error = $"Não foi possível confirmar a gravação. {ex.Message} Consulte os registros antes de repetir; o formulário foi preservado."; }
+        finally { busy = false; }
+    }
+}

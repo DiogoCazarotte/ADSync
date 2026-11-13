@@ -15,6 +15,7 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
 
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Equipamento> Equipamentos => Set<Equipamento>();
+    public DbSet<OperacaoDiaria> OperacoesDiarias => Set<OperacaoDiaria>();
     public DbSet<CausaFalha> CausasFalha => Set<CausaFalha>();
     public DbSet<Peca> Pecas => Set<Peca>();
     public DbSet<OrdemServico> OrdensServico => Set<OrdemServico>();
@@ -26,6 +27,16 @@ public class AdSyncDbContext : IdentityDbContext<ApplicationUser, IdentityRole<G
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder); // cria as tabelas do Identity (AspNetUsers, AspNetRoles, etc.)
+
+        modelBuilder.Entity<OperacaoDiaria>(e =>
+        {
+            e.ToTable("equipamento_operacao_diaria", t => t.HasCheckConstraint("ck_operacao_horas", "horas_operadas >= 0 AND horas_operadas <= 24"));
+            e.HasKey(x => new { x.EquipamentoId, x.Data });
+            e.Property(x => x.EquipamentoId).HasColumnName("equipamento_id");
+            e.Property(x => x.Data).HasColumnName("data");
+            e.Property(x => x.HorasOperadas).HasColumnName("horas_operadas").HasPrecision(4, 2);
+            e.HasOne(x => x.Equipamento).WithMany().HasForeignKey(x => x.EquipamentoId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<EventoSincronizado>(e =>
         {

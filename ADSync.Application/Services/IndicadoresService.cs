@@ -22,7 +22,15 @@ public class IndicadoresService(IIndicadoresRepository repo) : IIndicadoresServi
         var anteriores = inicioAnterior.HasValue
             ? await repo.ListarConcluidasAsync(Utc(inicioAnterior.Value), inicio)
             : new List<OrdemServico>();
-        var setores = atuais.Concat(anteriores).Select(SetorDe).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToList();
+        var equipamentos = repo.MtbfHabilitado ? await repo.ListarEquipamentosMtbfAsync() : [];
+        var operacoes = repo.MtbfHabilitado ? await repo.ListarOperacoesAsync(dataInicio, dataFim) : [];
+        var falhas = repo.MtbfHabilitado ? await repo.ListarFalhasAsync(inicio, fimExclusivo) : [];
+        var operacoesAnteriores = repo.MtbfHabilitado && inicioAnterior.HasValue
+            ? await repo.ListarOperacoesAsync(inicioAnterior.Value, dataInicio.AddDays(-1)) : [];
+        var falhasAnteriores = repo.MtbfHabilitado && inicioAnterior.HasValue
+            ? await repo.ListarFalhasAsync(Utc(inicioAnterior.Value), inicio) : [];
+        var setores = atuais.Concat(anteriores).Select(SetorDe).Concat(equipamentos.Select(SetorEquipamento))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToList();
         var filtro = string.IsNullOrWhiteSpace(setor) ? null : setor.Trim();
         if (filtro is not null)
         {
@@ -65,14 +73,29 @@ public class IndicadoresService(IIndicadoresRepository repo) : IIndicadoresServi
             data = mensal ? data.AddMonths(1) : data.AddDays(1);
         }
 
+        var geral = CalcularResumo(atuais);
+        var anterior = inicioAnterior.HasValue ? CalcularResumo(anteriores) : null;
+        if (repo.MtbfHabilitado)
+        {
+            AplicarMtbf(geral, equipamentos, operacoes, falhas, dias, filtro);
+            if (anterior is not null) AplicarMtbf(anterior, equipamentos, operacoesAnteriores, falhasAnteriores, dias, filtro);
+            foreach (var nome in setores.Where(s => filtro is null || string.Equals(s, filtro, StringComparison.OrdinalIgnoreCase)))
+            {
+                var resumoSetor = porSetor.FirstOrDefault(s => string.Equals(s.Setor, nome, StringComparison.OrdinalIgnoreCase));
+                if (resumoSetor is null) { resumoSetor = new IndicadorPorSetorDto { Setor = nome }; porSetor.Add(resumoSetor); }
+                AplicarMtbf(resumoSetor, equipamentos, operacoes, falhas, dias, nome);
+            }
+        }
+
         return new IndicadoresDto
         {
+            MtbfHabilitado = repo.MtbfHabilitado,
             DataInicio = dataInicio, DataFim = dataFim, Setor = filtro,
             DataInicioAnterior = inicioAnterior,
             DataFimAnterior = inicioAnterior.HasValue ? dataInicio.AddDays(-1) : null,
-            Anterior = inicioAnterior.HasValue ? CalcularResumo(anteriores) : null,
+            Anterior = anterior,
             SetoresDisponiveis = setores,
-            Geral = CalcularResumo(atuais), PorSetor = porSetor,
+            Geral = geral, PorSetor = porSetor,
             EvolucaoMensal = mensal, Evolucao = evolucao,
             Equipamentos = atuais.Where(os => os.TipoManutencao == TipoManutencao.Corretiva)
                 .GroupBy(os => os.EquipamentoId)
@@ -86,6 +109,26 @@ public class IndicadoresService(IIndicadoresRepository repo) : IIndicadoresServi
     }
 
     private static DateTimeOffset Utc(DateOnly data) => new(data.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+    private static string SetorEquipamento(Equipamento equipamento) => string.IsNullOrWhiteSpace(equipamento.Setor) ? "(sem setor)" : equipamento.Setor.Trim();
+
+    private static void AplicarMtbf(IndicadorResumoDto resumo, List<Equipamento> equipamentos,
+        List<OperacaoDiaria> operacoes, List<OrdemServico> falhas, int dias, string? setor)
+    {
+        // Um equipamento só entra quando todos os dias estão registrados, inclusive dias com zero horas.
+        // Numerador e denominador sempre usam os mesmos equipamentos e a mesma janela.
+        var horasPorEquipamento = operacoes.GroupBy(o => o.EquipamentoId).ToDictionary(g => g.Key, g => g.ToList());
+        var idsComHistorico = operacoes.Select(o => o.EquipamentoId).Concat(falhas.Select(o => o.EquipamentoId)).ToHashSet();
+        var candidatos = equipamentos.Where(e => (e.Ativo || idsComHistorico.Contains(e.Id)) &&
+            (setor is null || string.Equals(SetorEquipamento(e), setor, StringComparison.OrdinalIgnoreCase))).ToList();
+        var cobertos = candidatos.Where(e => horasPorEquipamento.TryGetValue(e.Id, out var registros)
+            && registros.Select(o => o.Data).Distinct().Count() == dias).Select(e => e.Id).ToHashSet();
+        resumo.EquipamentosMtbf = cobertos.Count;
+        resumo.EquipamentosSemCobertura = candidatos.Count - cobertos.Count;
+        resumo.HorasOperadas = operacoes.Where(o => cobertos.Contains(o.EquipamentoId)).Sum(o => o.HorasOperadas);
+        resumo.FalhasMtbf = falhas.Count(o => cobertos.Contains(o.EquipamentoId));
+        resumo.MtbfHoras = resumo.HorasOperadas > 0 && resumo.FalhasMtbf > 0
+            ? Math.Round((double)resumo.HorasOperadas / resumo.FalhasMtbf, 1) : null;
+    }
     private static string SetorDe(OrdemServico os) => string.IsNullOrWhiteSpace(os.Equipamento?.Setor) ? "(sem setor)" : os.Equipamento.Setor.Trim();
 
     private static IndicadorResumoDto CalcularResumo(List<OrdemServico> lista)

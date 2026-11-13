@@ -4,7 +4,7 @@ A API e a interface ficam na imagem Docker. O banco continua no Supabase: o outr
 
 ## Neste computador: gerar a imagem e os arquivos para levar
 
-Abra o Docker Desktop em modo **containers Linux**. No PowerShell, na pasta do projeto:
+Abra o Docker Desktop em modo **    Linux**. No PowerShell, na pasta do projeto:
 
 ```powershell
 docker build -t adsync:local .

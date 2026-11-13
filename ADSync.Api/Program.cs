@@ -193,6 +193,7 @@ app.Use(async (context, next) =>
 });
 
 app.MapGet("/api/runtime", () => new { readOnly, seedEnabled, preventiveEnabled,
+    mtbfEnabled = app.Configuration.GetValue("Mtbf:Enabled", false),
     technicalOfflineEnabled = !readOnly && app.Configuration.GetValue("Offline:Enabled", false) });
 
 app.MapControllers();
