@@ -1,5 +1,7 @@
 # NexService — ADSync
 
+Relatório mensal do Gestor com atividades, recomendações justificadas, agenda preventiva, estimativa financeira opcional e impressão/PDF: [critérios e uso](docs/RELATORIOS-MENSAIS.md).
+
 Frontend no VS Code com Tailwind CSS e daisyUI: [guia de edição e execução](docs/FRONTEND.md).
 
 Executar API e interface em um container Docker: [guia passo a passo](docs/DOCKER.md).

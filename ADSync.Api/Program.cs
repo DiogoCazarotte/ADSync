@@ -127,6 +127,9 @@ if (preventiveEnabled)
 // ---------- Indicadores (RF07/RF10): MTTR, MTBF e % preventiva ----------
 builder.Services.AddScoped<IIndicadoresRepository, IndicadoresRepository>();
 builder.Services.AddScoped<IIndicadoresService, IndicadoresService>();
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddScoped<IRelatorioMensalRepository, RelatorioMensalRepository>();
+builder.Services.AddScoped<IRelatorioMensalService, RelatorioMensalService>();
 
 // ---------- CORS (o Blazor WASM roda em outra origem que a API) ----------
 // Origens configuráveis em "Cors:Origens"; o padrão são as portas do launchSettings do Client.

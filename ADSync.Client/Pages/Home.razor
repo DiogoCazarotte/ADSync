@@ -52,11 +52,11 @@ else
     {
         <WorkspaceOverview Name="@Client.Session.Nome" Orders="orders" Plans="plans" Equipment="equipment" Areas="Areas" Pending="Client.Pending" Busy="Working" ReadOnly="Client.ReadOnlyMode" CanSeePlans='@(Client.Role("Gestor") || Client.Role("Tecnico"))' OnNavigate="Switch" OnDetail="ShowOrder" OnSync="Sync" />
     }
-    else if (area != "Indicadores")
+    else if (area is not ("Indicadores" or "Relatórios"))
     {
         <div class="workspace-sync toolbar"><span role="status">@Client.Pending pendência(s) no dispositivo</span><button disabled="@(Working || Client.ReadOnlyMode)" @onclick="Sync"><AppIcon Name="refresh" />Tentar sincronizar</button></div>
     }
-    @if (area != "Indicadores") { <p class="workspace-profile-description" role="status">@ProfileDescription</p> }
+    @if (area is not ("Indicadores" or "Relatórios")) { <p class="workspace-profile-description" role="status">@ProfileDescription</p> }
     @if (Client.TechnicalOfflineEnabled && Client.Role("Tecnico"))
     {
         <p role="status">@Client.PreparationNotice</p>
@@ -136,6 +136,10 @@ else
     {
         <Indicadores @ref="indicatorPanel" Setores="equipment.Select(e => e.Setor)" />
     }
+    else if(area == "Relatórios" && Client.Role("Gestor"))
+    {
+        <Relatorios @ref="reportPanel" />
+    }
     </WorkspaceShell>
 }
 </fieldset>
@@ -159,12 +163,12 @@ else
         : "Suas solicitações: somente ordens que você abriu.";
     string area = "Visão geral", message = "", search = "", status = "", priority = "", pause = "", observations = "";
     string[] priorities = ["Critica", "Alta", "Media", "Baixa"], statuses = ["Aberta", "EmAndamento", "Pausada", "Concluida", "Cancelada"];
-    IEnumerable<string> Areas => Client.Role("Gestor") ? ["Visão geral", "Ordens de serviço", "Indicadores", "Preventivas", "Equipamentos e peças", "Cadastros", "Usuários"]
+    IEnumerable<string> Areas => Client.Role("Gestor") ? ["Visão geral", "Ordens de serviço", "Indicadores", "Relatórios", "Preventivas", "Equipamentos e peças", "Cadastros", "Usuários"]
         : Client.Role("Tecnico") ? ["Visão geral", "Ordens de serviço", "Preventivas", "Equipamentos e peças"]
         : ["Visão geral", "Ordens de serviço"];
     LoginDto login = new(); CriarOrdemServicoDto draft = new();
     List<OrdemServicoDto> orders = []; List<EquipamentoDto> equipment = []; List<PecaDto> parts = []; List<UsuarioDto> technicians = []; List<CausaFalhaDto> causes = []; List<PlanoPreventivoDto> plans = [];
-    OrdemServicoDetalheDto? detail; Indicadores? indicatorPanel;
+    OrdemServicoDetalheDto? detail; Indicadores? indicatorPanel; Relatorios? reportPanel;
     Guid technician, part, cause; int quantity = 1;
     IEnumerable<OrdemServicoDto> Filtered => orders.Where(o => (o.EquipamentoNome.Contains(search, StringComparison.OrdinalIgnoreCase) || o.NumeroOS.Contains(search, StringComparison.OrdinalIgnoreCase)) && (status == "" || o.Status == status) && (priority == "" || o.Prioridade == priority)).OrderBy(o => Array.IndexOf(priorities, o.Prioridade)).ThenByDescending(o => o.DataAbertura);
     protected override async Task OnInitializedAsync()
@@ -211,8 +215,8 @@ else
         }
     }
     Task Login() => Run(async () => { await Client.LoginAsync(login); login = new(); showPassword = false; await Load(); });
-    Task Logout() => Run(async () => { await Client.LogoutAsync(); orders = []; equipment = []; parts = []; technicians = []; causes = []; plans = []; detail = null; indicatorPanel = null; draft = new(); technician = part = cause = Guid.Empty; observations = pause = search = status = priority = ""; area = "Visão geral"; });
-    Task Refresh() => Run(async () => { if (area == "Indicadores" && indicatorPanel is not null) await indicatorPanel.Refresh(); else await Load(); });
+    Task Logout() => Run(async () => { await Client.LogoutAsync(); orders = []; equipment = []; parts = []; technicians = []; causes = []; plans = []; detail = null; indicatorPanel = null; reportPanel = null; draft = new(); technician = part = cause = Guid.Empty; observations = pause = search = status = priority = ""; area = "Visão geral"; });
+    Task Refresh() => Run(async () => { if (area == "Indicadores" && indicatorPanel is not null) await indicatorPanel.Refresh(); else if (area == "Relatórios" && reportPanel is not null) await reportPanel.Refresh(); else await Load(); });
     Task Sync() => Run(async () => { await Client.SyncAsync(); await Load(); });
     Task Switch(string next) => Run(() => { area = next; return Task.CompletedTask; });
     void SearchOrders(string query) { search = query; area = "Ordens de serviço"; }

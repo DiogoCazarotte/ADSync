@@ -1,0 +1,170 @@
+@using System.Globalization
+@using ADSync.Application.DTOs
+@using ADSync.Client.Services
+@inject ManutencaoClient Client
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (Client.Role("Gestor"))
+{
+    <section class="monthly-reports" aria-label="Relatórios mensais" aria-busy="@(working ? "true" : "false")">
+        <div class="report-toolbar">
+            <div><h1>Relatórios mensais</h1><p>O que foi realizado, o que merece atenção e os próximos cuidados.</p></div>
+            <button type="button" disabled="@(working || data is null)" @onclick="Print">Imprimir / salvar PDF</button>
+        </div>
+        <form class="report-filters" @onsubmit="Refresh" @onsubmit:preventDefault>
+            <label>Mês de referência<input aria-label="Mês de referência" type="month" required max="@DateTime.UtcNow.ToString("yyyy-MM")" value="@month" @onchange="e => month = e.Value?.ToString() ?? string.Empty" disabled="@working" /></label>
+            <button type="submit" disabled="@working">@(working ? "Gerando…" : "Gerar relatório")</button>
+        </form>
+        @if (!string.IsNullOrEmpty(error)) { <p class="message" role="alert">@error</p> }
+        @if (working) { <p role="status">Consultando atividades e preparando o relatório…</p> }
+        @if (data is { } report)
+        {
+            <article class="monthly-document" @ref="documentElement">
+                <header class="report-cover">
+                    <span class="report-eyebrow">ADSync · Gestão da manutenção</span>
+                    <h2>Relatório de atividades</h2><p class="report-month">@report.DataInicio.ToString("MMMM 'de' yyyy", Pt)</p>
+                    <p>@Date(report.DataInicio) a @Date(report.DataFim) · Datas e horários em UTC</p>
+                    <p>Gerado em @report.GeradoEm.UtcDateTime.ToString("dd/MM/yyyy HH:mm", Pt) UTC</p>
+                    @if (report.MesEmAndamento) { <p class="report-notice"><strong>Mês em andamento:</strong> resultados parciais até a geração. O mês anterior, quando exibido, está completo.</p> }
+                </header>
+
+                <section class="report-section" aria-label="Resumo executivo">
+                    <h3>01 · Resumo executivo</h3>
+                    <p>No período, foram concluídas <strong>@report.Resumo.Concluidas manutenções</strong>: @report.Resumo.Preventivas preventivas e @report.Resumo.Corretivas corretivas. Foram abertas @report.OrdensAbertasNoMes O.S. no mês, incluindo as que depois foram canceladas.</p>
+                    <div class="report-metrics">
+                        <div><span>Manutenções concluídas</span><strong>@report.Resumo.Concluidas</strong><small>@(report.MesAnterior is null ? "Sem mês anterior disponível" : $"Mês anterior completo: {report.MesAnterior.Concluidas}")</small></div>
+                        <div><span>Participação preventiva</span><strong>@Number(report.Resumo.PercentualPreventiva)%</strong><small>Preventivas ÷ conclusões</small></div>
+                        <div><span>Trabalho ativo registrado</span><strong>@Number(report.Resumo.HorasTrabalhadas) h</strong><small>@report.Resumo.OrdensComTempoValido O.S. com sequência válida</small></div>
+                        <div><span>MTTR de trabalho ativo</span><strong>@Number(report.Resumo.MttrMinutos) min</strong><small>Amostra: @report.Resumo.AmostraMttr corretiva(s)</small></div>
+                    </div>
+                    @if (report.Resumo.OrdensSemTempoValido > 0) { <p class="report-notice">@report.Resumo.OrdensSemTempoValido O.S. sem tempo válido: incluídas nas contagens e excluídas das métricas de tempo.</p> }
+                    @if (report.Setores.Count > 0)
+                    {
+                        <h4>Distribuição por setor</h4>
+                        <div class="report-table-wrap"><table><caption>Manutenções concluídas no mês, por setor</caption><thead><tr><th>Setor</th><th>Preventivas</th><th>Corretivas</th><th>Total</th></tr></thead><tbody>
+                        @foreach (var setor in report.Setores) { <tr><th scope="row">@setor.Setor</th><td>@setor.Preventivas</td><td>@setor.Corretivas</td><td>@(setor.Preventivas + setor.Corretivas)</td></tr> }
+                        </tbody></table></div>
+                    }
+                </section>
+
+                <section class="report-section" aria-label="Manutenções realizadas">
+                    <h3>02 · Manutenções realizadas</h3>
+                    <p>Ordens selecionadas pela data de conclusão. Uma ordem aberta antes do mês pode fazer parte deste histórico.</p>
+                    @if (report.Atividades.Count == 0) { <p class="report-empty">Nenhuma manutenção concluída no mês selecionado.</p> }
+                    @foreach (var atividade in report.Atividades)
+                    {
+                        <article class="report-activity">
+                            <div class="report-activity-heading"><h4>@atividade.Numero · @atividade.Equipamento</h4><span>@atividade.Tipo</span></div>
+                            <p class="report-muted">Patrimônio: @atividade.Patrimonio · @atividade.Setor · @atividade.ConcluidaEm.UtcDateTime.ToString("dd/MM/yyyy HH:mm", Pt) UTC</p>
+                            <p><strong>Atividade:</strong> @atividade.Descricao</p>
+                            <p><strong>Diagnóstico:</strong> @(atividade.Causa ?? "Não informado")</p>
+                            <p><strong>Registro técnico:</strong> @(string.IsNullOrWhiteSpace(atividade.Observacoes) ? "Sem observações" : atividade.Observacoes)</p>
+                            <p><strong>Responsável:</strong> @atividade.Tecnico · Trabalho ativo: @Number(atividade.MinutosTrabalhados) min</p>
+                            @if (atividade.Pecas.Count > 0) { <p><strong>Peças:</strong> @string.Join("; ", atividade.Pecas.Select(p => $"{p.Codigo} · {p.Nome}: {p.Quantidade} un."))</p> }
+                        </article>
+                    }
+                </section>
+
+                <section class="report-section" aria-label="Consumo de peças">
+                    <h3>03 · Consumo de peças</h3>
+                    <p>Quantidade acumulada nas O.S. concluídas no mês; o consumo pode ter ocorrido antes da conclusão.</p>
+                    @if (report.Pecas.Count == 0) { <p class="report-empty">Nenhuma peça registrada nas conclusões do período.</p> }
+                    else
+                    {
+                        <div class="report-table-wrap"><table><caption>Peças utilizadas nas manutenções concluídas</caption><thead><tr><th>Código</th><th>Peça</th><th>Quantidade</th></tr></thead><tbody>
+                        @foreach (var peca in report.Pecas) { <tr><td>@peca.Codigo</td><th scope="row">@peca.Nome</th><td>@peca.Quantidade un.</td></tr> }
+                        </tbody></table></div>
+                    }
+                </section>
+
+                <section class="report-section" aria-label="Recomendações de manutenção">
+                    <h3>04 · Recomendações e pontos de atenção</h3>
+                    <p>Recorrências consideram as conclusões do mês. Chamados, estoque e planos refletem a situação <strong>na geração deste relatório</strong>: @report.PendentesAtuais O.S. pendente(s) no total. Não representam o saldo histórico no fechamento do mês.</p>
+                    @if (report.Recomendacoes.Count == 0) { <p class="report-empty">Nenhum alerta pelas regras consultadas. A ausência de alertas não substitui inspeções técnicas.</p> }
+                    @foreach (var sugestao in report.Recomendacoes)
+                    {
+                        <article class="report-recommendation"><span class="report-tag">@sugestao.Prioridade</span><h4>@sugestao.Titulo</h4><p><strong>Evidência:</strong> @sugestao.Evidencia</p><p><strong>Ação sugerida:</strong> @sugestao.Acao</p></article>
+                    }
+                    <p class="report-muted">Recomendações por regras do histórico, sujeitas à avaliação do gestor e do técnico. Nenhuma ordem é criada ou alterada ao gerar o relatório.</p>
+                </section>
+
+                <section class="report-section" aria-label="Agenda preventiva atual">
+                    <h3>05 · Agenda preventiva atual</h3>
+                    <p>Planos ativos com equipamento ativo, datas de geração vencidas ou previstas para os próximos 30 dias a partir da emissão. A data é a próxima geração de O.S., não um prazo de conclusão.</p>
+                    @if (report.AgendaAtual.Count == 0) { <p class="report-empty">Nenhum plano nas condições consultadas.</p> }
+                    @foreach (var plano in report.AgendaAtual)
+                    {
+                        <article class="report-activity"><h4>@plano.Equipamento · @plano.Tarefa</h4><p>@Date(plano.ProximaExecucao) · @plano.Responsavel · @(plano.Vencida ? "Data de geração vencida; conferir ordens existentes" : "Geração prevista")</p></article>
+                    }
+                </section>
+
+                <section class="report-section" aria-label="Estimativa de perdas evitadas">
+                    <h3>06 · Estimativa de perdas evitadas</h3>
+                    <p>O sistema ainda não registra custos nem comprova paradas evitadas. Opcionalmente, informe premissas documentadas para estimar o impacto financeiro do mês.</p>
+                    <div class="report-finance-inputs report-no-print">
+                        <label>Custo estimado de parada (R$/h)<input aria-label="Custo estimado de parada (R$/h)" type="number" min="0.01" max="1000000000" step="0.01" @bind="costPerHour" /></label>
+                        <label>Horas de parada estimadas como evitadas<input aria-label="Horas de parada estimadas como evitadas" type="number" min="0.01" max="1000000" step="0.01" @bind="avoidedHours" /></label>
+                        <label class="report-evidence">Fonte e justificativa das premissas<textarea aria-label="Fonte e justificativa das premissas" maxlength="2000" @bind="financialEvidence" @bind:event="oninput" placeholder="Identifique as O.S., a fonte do custo e o critério usado para estimar as horas evitadas."></textarea></label>
+                    </div>
+                    @if (ValidEstimate)
+                    {
+                        <div class="report-estimate"><span>Estimativa informada pelo gestor · não auditada</span><strong>@((costPerHour!.Value * avoidedHours!.Value).ToString("C2", Pt))</strong><p>@costPerHour.Value.ToString("C2", Pt)/h × @avoidedHours.Value.ToString("N2", Pt) horas estimadas como evitadas.</p><p><strong>Fonte e justificativa:</strong> @financialEvidence</p></div>
+                        <p>Valor potencial bruto, sem descontar custos de manutenção. Não representa economia comprovada e não é deduzido automaticamente da quantidade de preventivas. Premissas incluídas apenas nesta visualização e impressão.</p>
+                    }
+                    else { <p class="report-empty">Estimativa não calculada. Para incluí-la, preencha valores positivos dentro dos limites dos campos e informe a fonte e a justificativa.</p> }
+                </section>
+
+                <footer class="report-method">
+                    <h3>Critérios e limites</h3>
+                    <p>Mês civil em UTC, do primeiro dia às 00h até o início do mês seguinte, sem incluir esse limite. Conclusões e aberturas do mês corrente são limitadas ao instante da geração. Somente O.S. concluídas entram nas atividades e nos indicadores de manutenção.</p>
+                    <p>Trabalho ativo soma os intervalos entre início/retomada e pausa/conclusão das O.S. com registros válidos; pausas e espera não entram. O MTTR usa somente corretivas com tempo válido e não mede toda a indisponibilidade. As horas correspondem ao trabalho das ordens concluídas, inclusive trechos anteriores ao mês.</p>
+                    <p>Recorrência: pelo menos duas corretivas concluídas no mês para o mesmo equipamento ativo. Nomes, setores, planos e estoque são os cadastros atuais. Este relatório é uma consulta na data de emissão; novas sincronizações ou alterações cadastrais podem mudar uma emissão posterior.</p>
+                </footer>
+            </article>
+        }
+    </section>
+}
+
+@code {
+    static readonly CultureInfo Pt = CultureInfo.GetCultureInfo("pt-BR");
+    string month = DateTime.UtcNow.ToString("yyyy-MM"), error = "", financialEvidence = "";
+    bool working;
+    decimal? costPerHour, avoidedHours;
+    RelatorioMensalDto? data;
+    ElementReference documentElement;
+    IJSObjectReference? printModule;
+    bool ValidEstimate => costPerHour is > 0 and <= 1000000000 && avoidedHours is > 0 and <= 1000000 && !string.IsNullOrWhiteSpace(financialEvidence);
+    protected override Task OnInitializedAsync() => Refresh();
+    public async Task Refresh()
+    {
+        if (working || !Client.Role("Gestor")) return;
+        error = "";
+        if (!DateOnly.TryParseExact(month + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var start) || start.Year > 9998 || start > DateOnly.FromDateTime(DateTime.UtcNow))
+        { error = "Selecione o mês atual ou um mês anterior válido."; return; }
+        working = true;
+        try
+        {
+            data = await Client.GetOnlineAsync<RelatorioMensalDto>($"api/relatorios/mensal?ano={start.Year}&mes={start.Month}");
+            costPerHour = avoidedHours = null; financialEvidence = "";
+        }
+        catch (Exception ex) { error = $"Não foi possível gerar o relatório. {ex.Message}" + (data is null ? "" : " A consulta anterior continua exibida com o mês e a emissão originais."); }
+        finally { working = false; }
+    }
+    async Task Print()
+    {
+        error = "";
+        try
+        {
+            printModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./reports.js");
+            await printModule.InvokeVoidAsync("printReport", documentElement);
+        }
+        catch (JSException) { error = "Não foi possível abrir a impressão. Tente novamente e escolha Salvar como PDF no diálogo do navegador."; }
+    }
+    static string Date(DateOnly date) => date.ToString("dd/MM/yyyy", Pt);
+    static string Number(double? value) => value?.ToString("N1", Pt) ?? "—";
+    public async ValueTask DisposeAsync()
+    {
+        if (printModule is not null) await printModule.DisposeAsync();
+    }
+}
