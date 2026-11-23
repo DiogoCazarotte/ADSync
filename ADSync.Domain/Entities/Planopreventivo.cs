@@ -54,6 +54,11 @@ public class PlanoPreventivo
     {
         if (!Ativo)
             throw new RegraNegocioException("O plano preventivo está inativo.");
+        if (CalendarioManutencao.Data(agora) < ProximaExecucao)
+            throw new RegraNegocioException($"A manutenção preventiva estará disponível a partir de {ProximaExecucao:dd/MM/yyyy}.");
+        ValidarResponsavel(TecnicoResponsavel ?? throw new RegraNegocioException("Técnico responsável não encontrado."));
+        if (Equipamento is not { Ativo: true })
+            throw new RegraNegocioException("O equipamento informado está inativo.");
 
         var ordemServico = new OrdemServico
         {
