@@ -4,6 +4,8 @@
 !.dockerignore
 !package.json
 !package-lock.json
+!tools/
+!tools/build-vendor.cjs
 !ADSync.Domain/
 !ADSync.Domain/**
 !ADSync.Application/

@@ -2,6 +2,7 @@
 @using ADSync.Application.DTOs
 @using ADSync.Client.Services
 @inject ManutencaoClient Client
+@inject NotificationService Notifications
 
 <section class="indicators" aria-labelledby="indicators-title" aria-busy="@working.ToString().ToLowerInvariant()">
     <header class="indicators-heading">
@@ -16,14 +17,13 @@
                 <button type="button" class="@(IsPeriod(days) ? "selected" : "")" aria-pressed="@IsPeriod(days).ToString().ToLowerInvariant()" @onclick="() => Period(days)">Últimos @days dias</button>
             }
         </div>
-        <form class="indicators-filter-fields" @onsubmit="Refresh" @onsubmit:preventDefault>
+        <form novalidate class="indicators-filter-fields" @onsubmit="Refresh" @onsubmit:preventDefault>
             <label>Data inicial<input type="date" @bind="start" required /></label>
             <label>Data final<input type="date" @bind="end" required /></label>
             <label>Setor<select aria-label="Setor" @bind="sector"><option value="">Todos os setores</option>@foreach (var item in Sectors) { <option value="@item">@item</option> }</select></label>
             <button type="submit"><AppIcon Name="refresh" />@(working ? "Consultando…" : "Aplicar filtros")</button>
         </form>
     </fieldset>
-    @if (!string.IsNullOrEmpty(error)) { <p class="message" role="alert">@error</p> }
     @if (working) { <p class="indicators-status" role="status">Consultando indicadores…</p> }
     @if (data is { } report)
     {
@@ -149,15 +149,16 @@
     {
         if (working || !Client.Role("Gestor")) return;
         error = "";
-        if (start > end) { error = "A data inicial deve ser menor ou igual à data final."; return; }
-        if (end.Date == DateTime.MaxValue.Date) { error = "A data final deve ser até 30/12/9999."; return; }
+        if (start == default || end == default) { Notifications.Error("Informe as datas inicial e final."); return; }
+        if (start > end) { Notifications.Error("A data inicial deve ser menor ou igual à data final."); return; }
+        if (end.Date == DateTime.MaxValue.Date) { Notifications.Error("A data final deve ser até 30/12/9999."); return; }
         working = true;
         try
         {
             data = await Client.GetOnlineAsync<IndicadoresDto>($"api/indicadores?dataInicio={start:yyyy-MM-dd}&dataFim={end:yyyy-MM-dd}&setor={Uri.EscapeDataString(sector)}");
         }
         catch (Exception ex) { error = $"Não foi possível atualizar os indicadores. {ex.Message}" + (data is null ? "" : " O resultado da consulta anterior continua exibido com suas datas originais."); }
-        finally { working = false; }
+        finally { working = false; Notifications.Error(error); }
     }
     bool IsPeriod(int days) => end.Date == DateTime.UtcNow.Date && start.Date == end.Date.AddDays(1 - days);
     Task Period(int days) { end = DateTime.UtcNow.Date; start = end.AddDays(1 - days); return Refresh(); }

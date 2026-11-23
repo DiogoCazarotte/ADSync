@@ -23,3 +23,14 @@ public class SituacaoUsuarioDto
 {
     public bool Ativo { get; set; }
 }
+
+public class AlterarSenhaUsuarioDto
+{
+    [Required(ErrorMessage = "Informe a nova senha.")]
+    [StringLength(128, MinimumLength = 8, ErrorMessage = "A senha deve ter entre 8 e 128 caracteres.")]
+    public string NovaSenha { get; set; } = "";
+
+    [Required(ErrorMessage = "Confirme a nova senha.")]
+    [Compare(nameof(NovaSenha), ErrorMessage = "As senhas não conferem.")]
+    public string ConfirmarSenha { get; set; } = "";
+}

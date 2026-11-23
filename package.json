@@ -5,6 +5,8 @@
     "test:pwa": "node tests/pwa-offline.cjs",
     "test:storage": "node tests/storage.cjs",
     "test:read-only": "node tests/read-only.cjs",
+    "test:inventory": "node tests/inventory-browser.cjs",
+    "build:vendor": "node tools/build-vendor.cjs",
     "build:css": "tailwindcss -i ./ADSync.Client/Styles/app.css -o ./ADSync.Client/wwwroot/css/app.css --minify",
     "watch:css": "tailwindcss -i ./ADSync.Client/Styles/app.css -o ./ADSync.Client/wwwroot/css/app.css --watch"
   },
@@ -13,5 +15,8 @@
     "daisyui": "^5.7.50",
     "playwright": "1.64.1",
     "tailwindcss": "^4.3.5"
+  },
+  "dependencies": {
+    "vue": "3.5.46"
   }
 }

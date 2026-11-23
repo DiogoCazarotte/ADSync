@@ -1,6 +1,8 @@
 ﻿using ADSync.Application.DTOs;
 using ADSync.Application.Interfaces;
+using ADSync.Domain;
 using ADSync.Domain.Entities;
+using ADSync.Domain.Enums;
 using ADSync.Domain.Exceptions;
 using ADSync.Domain.Interfaces;
 
@@ -83,16 +85,28 @@ public class PlanoPreventivoService : IPlanoPreventivoService
     private async Task<Usuario> ObterTecnicoOuFalharAsync(Guid id) =>
         await _usuarios.ObterPorIdAsync(id) ?? throw new NaoEncontradoException("Técnico não encontrado.");
 
-    private static PlanoPreventivoDto Mapear(PlanoPreventivo p) => new()
+    private static PlanoPreventivoDto Mapear(PlanoPreventivo p)
     {
-        Id = p.Id,
-        EquipamentoId = p.EquipamentoId,
-        EquipamentoNome = p.Equipamento?.Nome ?? string.Empty,
-        TecnicoResponsavelId = p.TecnicoResponsavelId,
-        TecnicoResponsavelNome = p.TecnicoResponsavel?.Nome ?? string.Empty,
-        Descricao = p.Descricao,
-        PeriodicidadeDias = p.PeriodicidadeDias,
-        ProximaExecucao = p.ProximaExecucao,
-        Ativo = p.Ativo
-    };
+        var hoje = CalendarioManutencao.Data(DateTimeOffset.UtcNow);
+        var ordem = p.OrdensGeradas.Where(o => o.Status is StatusOS.Aberta or StatusOS.EmAndamento or StatusOS.Pausada)
+            .OrderBy(o => o.DataAbertura).FirstOrDefault();
+        return new()
+        {
+            Id = p.Id,
+            EquipamentoId = p.EquipamentoId,
+            EquipamentoNome = p.Equipamento?.Nome ?? string.Empty,
+            TecnicoResponsavelId = p.TecnicoResponsavelId,
+            TecnicoResponsavelNome = p.TecnicoResponsavel?.Nome ?? string.Empty,
+            Descricao = p.Descricao,
+            PeriodicidadeDias = p.PeriodicidadeDias,
+            ProximaExecucao = p.ProximaExecucao,
+            Ativo = p.Ativo,
+            OrdemServicoId = ordem?.Id,
+            OrdemServicoStatus = ordem?.Status.ToString(),
+            TecnicoOrdemServicoId = ordem?.TecnicoId,
+            InicioLiberado = ordem is not null
+                ? CalendarioManutencao.Data(ordem.DataAbertura) <= hoje
+                : p.Ativo && p.ProximaExecucao <= hoje
+        };
+    }
 }

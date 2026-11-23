@@ -1,6 +1,7 @@
 @using ADSync.Application.DTOs
 @using ADSync.Client.Services
 @inject ManutencaoClient Client
+@inject NotificationService Notifications
 
 <section class="indicator-panel" aria-labelledby="operation-title">
     <h2 id="operation-title">Horas de operação dos equipamentos</h2>
@@ -10,12 +11,10 @@
         <label>Data da operação<input type="date" @bind="day" max="@DateTime.UtcNow.ToString("yyyy-MM-dd")" /></label>
         <button type="button" @onclick="Load">Consultar registros</button>
     </fieldset>
-    @if (error.Length > 0) { <p class="message" role="alert">@error</p> }
-    @if (message.Length > 0) { <p class="message" role="status">@message</p> }
     @if (!Client.ReadOnlyMode)
     {
-        <EditForm Model="draft" OnValidSubmit="Save">
-            <DataAnnotationsValidator /><ValidationSummary />
+        <EditForm novalidate Model="draft" OnValidSubmit="Save" OnInvalidSubmit="Notifications.Validation">
+            <DataAnnotationsValidator />
             <fieldset disabled="@(busy || !loadedDay.HasValue || DateOnly.FromDateTime(day) != loadedDay)">
                 <legend>Lançar ou corrigir horas</legend>
                 <label>Equipamento<select @bind="equipmentId"><option value="@Guid.Empty">Selecione</option>@foreach (var item in equipment) { <option value="@item.Id">@item.Nome · @item.CodigoPatrimonio</option> }</select></label>
@@ -63,19 +62,19 @@
             equipmentId = Guid.Empty; draft = new();
         }
         catch (Exception ex) { error = $"Não foi possível consultar os registros. {ex.Message}"; }
-        finally { busy = false; }
+        finally { busy = false; Notifications.Error(error); }
     }
     void Edit(Guid id, OperacaoDiariaDto? record)
     {
-        if (loadedDay != DateOnly.FromDateTime(day)) { error = "Consulte a data selecionada antes de editar."; return; }
+        if (loadedDay != DateOnly.FromDateTime(day)) { Notifications.Error("Consulte a data selecionada antes de editar."); return; }
         equipmentId = id; draft = new() { HorasOperadas = record?.HorasOperadas ?? 0 }; message = "";
     }
     async Task Save()
     {
         if (busy || Client.ReadOnlyMode) return;
         error = ""; message = "";
-        if (equipmentId == Guid.Empty) { error = "Selecione um equipamento."; return; }
-        if (loadedDay != DateOnly.FromDateTime(day)) { error = "Consulte a data selecionada antes de salvar."; return; }
+        if (equipmentId == Guid.Empty) { Notifications.Error("Selecione um equipamento."); return; }
+        if (loadedDay != DateOnly.FromDateTime(day)) { Notifications.Error("Consulte a data selecionada antes de salvar."); return; }
         busy = true;
         try
         {
@@ -85,6 +84,6 @@
             await OnSaved.InvokeAsync();
         }
         catch (Exception ex) { error = $"Não foi possível confirmar a gravação. {ex.Message} Consulte os registros antes de repetir; o formulário foi preservado."; }
-        finally { busy = false; }
+        finally { busy = false; Notifications.Report(error, message); }
     }
 }

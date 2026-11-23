@@ -4,6 +4,13 @@ namespace ADSync.Application.DTOs;
 
 // Corpo das ações do fluxo da O.S.
 
+public class EditarDescricaoOrdemServicoDto
+{
+    [Required(ErrorMessage = "Informe a descrição do problema.")]
+    [StringLength(2000, ErrorMessage = "A descrição deve ter no máximo 2000 caracteres.")]
+    public string DescricaoProblema { get; set; } = string.Empty;
+}
+
 public class AtribuirTecnicoDto
 {
     [Required(ErrorMessage = "Informe o técnico.")]
@@ -29,7 +36,7 @@ public class PausarOrdemServicoDto
 
 public class ConcluirOrdemServicoDto
 {
-    [Required(ErrorMessage = "Informe a causa da falha.")]
+    // Obrigatória para corretivas; validada pelo domínio conforme o tipo da O.S.
     public Guid? CausaFalhaId { get; set; }
 
     [StringLength(2000)]

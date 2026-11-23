@@ -59,7 +59,7 @@ public class GeracaoPreventivaBackgroundService : BackgroundService
         var repoPlanos = scope.ServiceProvider.GetRequiredService<IPlanoPreventivoRepository>();
         var repoOrdens = scope.ServiceProvider.GetRequiredService<IOrdemServicoRepository>();
 
-        var hoje = DateOnly.FromDateTime(DateTime.UtcNow);
+        var hoje = ADSync.Domain.CalendarioManutencao.Data(DateTimeOffset.UtcNow);
         var pendentes = await repoPlanos.ListarPendentesAsync(hoje);
 
         if (pendentes.Count == 0)

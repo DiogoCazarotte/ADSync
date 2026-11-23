@@ -76,6 +76,9 @@ public class OrdemServico
 
         GarantirResponsavel(tecnicoId);
 
+        if (TipoManutencao == TipoManutencao.Preventiva && CalendarioManutencao.Data(quando) < CalendarioManutencao.Data(DataAbertura))
+            throw new RegraNegocioException($"A manutenção preventiva estará disponível a partir de {CalendarioManutencao.Data(DataAbertura):dd/MM/yyyy}.");
+
         RegistrarEvento(TipoRegistroTempo.Inicio, quando);
         Status = StatusOS.EmAndamento;
     }
@@ -107,8 +110,8 @@ public class OrdemServico
         Status = StatusOS.EmAndamento;
     }
 
-    // RF05: a causa da falha é obrigatória para concluir.
-    public void Concluir(Guid tecnicoId, CausaFalha causa, string? observacoes, DateTimeOffset quando)
+    // RF05: corretivas exigem causa da falha; preventivas podem terminar sem falha.
+    public void Concluir(Guid tecnicoId, CausaFalha? causa, string? observacoes, DateTimeOffset quando)
     {
         if (Status != StatusOS.EmAndamento)
             throw new RegraNegocioException(
@@ -117,14 +120,16 @@ public class OrdemServico
 
         GarantirResponsavel(tecnicoId);
 
-        if (!causa.Ativo)
+        if (causa is null && TipoManutencao != TipoManutencao.Preventiva)
+            throw new RegraNegocioException("Informe a causa da falha.");
+        if (causa is { Ativo: false })
             throw new RegraNegocioException("A causa de falha informada está inativa.");
 
         RegistrarEvento(TipoRegistroTempo.Conclusao, quando);
 
         Status = StatusOS.Concluida;
         DataConclusao = quando;
-        CausaFalhaId = causa.Id;
+        CausaFalhaId = causa?.Id;
         CausaFalha = causa;
 
         if (!string.IsNullOrWhiteSpace(observacoes))

@@ -16,6 +16,11 @@ public class PlanoPreventivoDto
     public int PeriodicidadeDias { get; set; }
     public DateOnly ProximaExecucao { get; set; }
     public bool Ativo { get; set; }
+    public Guid? OrdemServicoId { get; set; }
+    public string? OrdemServicoStatus { get; set; }
+    public Guid? TecnicoOrdemServicoId { get; set; }
+    public bool InicioLiberado { get; set; }
+    public bool PodeAtender { get; set; }
 }
 
 public class SalvarPlanoPreventivoDto

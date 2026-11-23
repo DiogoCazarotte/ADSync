@@ -43,6 +43,13 @@ public class OrdensServicoController : ControllerBase
         return CreatedAtAction(nameof(ObterPorId), new { id = criada.Id }, criada);
     }
 
+    [HttpPut("{id:guid}/descricao")]
+    [Authorize(Roles = "Operador,Gestor")]
+    public async Task<ActionResult<OrdemServicoDetalheDto>> EditarDescricao(Guid id, [FromBody] EditarDescricaoOrdemServicoDto dto)
+    {
+        return Ok(await _service.EditarDescricaoAsync(id, UsuarioLogadoId, User.IsInRole("Gestor"), dto.DescricaoProblema));
+    }
+
     // GET /api/ordensservico/{id}: aplica o mesmo escopo da listagem.
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<OrdemServicoDetalheDto>> ObterPorId(Guid id)
@@ -134,7 +141,7 @@ public class OrdensServicoController : ControllerBase
     public async Task<ActionResult<OrdemServicoDetalheDto>> Concluir(Guid id, [FromBody] ConcluirOrdemServicoDto dto)
     {
         return Ok(await _service.ConcluirAsync(
-            id, UsuarioLogadoId, dto.CausaFalhaId!.Value, dto.ObservacoesTecnicas, dto.OcorridoEm));
+            id, UsuarioLogadoId, dto.CausaFalhaId, dto.ObservacoesTecnicas, dto.OcorridoEm));
     }
 
     private (Guid? TecnicoId, Guid? OperadorId) EscopoConsulta()

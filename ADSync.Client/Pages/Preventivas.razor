@@ -1,9 +1,10 @@
 @using ADSync.Application.DTOs
 @using ADSync.Client.Services
 @inject ManutencaoClient Client
+@inject NotificationService Notifications
 
 <h1>Preventivas</h1>
-<p>Organize as tarefas recorrentes por equipamento e técnico responsável. Alterações nos planos exigem conexão.</p>
+<p>Organize as tarefas recorrentes por equipamento e técnico responsável. O técnico pode iniciar a manutenção a partir do dia previsto, no horário de Brasília. O início pelo plano exige conexão.</p>
 <fieldset class="workspace" disabled="@working">
     <div class="filters">
         <label>Buscar plano<input @bind="search" @bind:event="oninput" /></label>
@@ -12,10 +13,9 @@
     </div>
     @if (CanManage)
     {
-        <section class="card" aria-label="Formulário do plano preventivo">
-            <h2>@(editingId is null ? "Criar plano preventivo" : "Editar plano preventivo")</h2>
-            <EditForm Model="draft" OnValidSubmit="Save" @key="draft">
-                <DataAnnotationsValidator /><ValidationSummary />
+        <AppModal Inline="@(editingId is null)" Title='@(editingId is null ? "Criar plano preventivo" : "Editar plano preventivo")' Busy="working" OnClose="Reset" @key='("plan-editor", editingId)'>
+            <EditForm novalidate Model="draft" OnValidSubmit="Save" OnInvalidSubmit="Notifications.Validation" @key="draft">
+                <DataAnnotationsValidator />
                 <label>Equipamento<InputSelect aria-label="Equipamento do plano" @bind-Value="draft.EquipamentoId">
                     <option value="@Guid.Empty">Selecione</option>
                     @if (draft.EquipamentoId != Guid.Empty && !equipment.Any(e => e.Id == draft.EquipamentoId)) { <option value="@draft.EquipamentoId">@editingEquipment (indisponível; selecione outro)</option> }
@@ -32,7 +32,7 @@
                 <button type="submit">@(editingId is null ? "Criar plano" : "Salvar alterações")</button>
                 @if (editingId is not null) { <button type="button" @onclick="Reset">Cancelar edição</button> }
             </EditForm>
-        </section>
+        </AppModal>
     }
     @if (!loading && !Filtered.Any()) { <p>Nenhum plano disponível nos filtros atuais.</p> }
     @foreach (var p in Filtered)
@@ -40,6 +40,12 @@
         <article class="card" @key="p.Id" aria-label="Plano preventivo">
             <div class="toolbar"><h2>@p.EquipamentoNome</h2><span class="badge">@(p.Ativo ? "Ativo" : "Inativo")</span></div>
             <p>@p.Descricao</p><p>@p.TecnicoResponsavelNome • a cada @p.PeriodicidadeDias dias • próxima: @p.ProximaExecucao.ToString("d")</p>
+            @if (p.OrdemServicoId.HasValue) { <p>OS em atendimento: @p.OrdemServicoStatus. A próxima data do plano corresponde à execução seguinte.</p> }
+            @if (p.PodeAtender && !Client.ReadOnlyMode)
+            {
+                <button type="button" disabled="@(!p.InicioLiberado)" @onclick="() => Start(p)">@(p.OrdemServicoStatus is "EmAndamento" or "Pausada" ? "Continuar atendimento" : "Iniciar manutenção")</button>
+                @if (!p.InicioLiberado) { <p>Início disponível a partir de @p.ProximaExecucao.ToString("d").</p> }
+            }
             @if (p.Ativo && p.ProximaExecucao < DateOnly.FromDateTime(DateTime.Today)) { <p>Data prevista vencida.</p> }
             @if (CanManage)
             {
@@ -50,11 +56,10 @@
     }
 </fieldset>
 @if (working) { <p role="status">Carregando planos…</p> }
-@if (message.Length > 0) { <p role="status" class="message">@message</p> }
-@if (error.Length > 0) { <p role="alert" class="message">@error</p> }
 
 @code {
     [Parameter] public EventCallback<bool> OnBusy { get; set; }
+    [Parameter] public EventCallback<OrdemServicoDetalheDto> OnOrder { get; set; }
     bool working, loading = true;
     bool CanManage => Client.Role("Gestor") && !Client.ReadOnlyMode;
     string search = "", status = "", message = "", error = "", editingEquipment = "", editingTechnician = "";
@@ -76,7 +81,7 @@
         await OnBusy.InvokeAsync(true);
         try { await action(); }
         catch (Exception ex) { error = ex.Message; }
-        finally { working = false; loading = false; await OnBusy.InvokeAsync(false); }
+        finally { working = false; loading = false; Notifications.Report(error, message); await OnBusy.InvokeAsync(false); }
     }
     Task Refresh() => Run(async () =>
     {
@@ -98,6 +103,12 @@
     {
         plans.RemoveAll(p => p.Id == saved.Id); plans.Add(saved);
     }
+    Task Start(PlanoPreventivoDto p) => Run(async () =>
+    {
+        if (!p.PodeAtender || !p.InicioLiberado || Client.ReadOnlyMode) return;
+        var ordem = await Client.StartPreventiveAsync(p.Id, p.OrdemServicoId);
+        await OnOrder.InvokeAsync(ordem);
+    });
     Task Save() => Run(async () =>
     {
         if (!CanManage) throw new InvalidOperationException("Alteração de planos indisponível.");

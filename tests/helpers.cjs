@@ -36,8 +36,7 @@ async function idle(page) {
 }
 const queue = (page, role) => page.evaluate(email=>JSON.parse(localStorage.getItem(`nexservice:${email}:queue`) || '[]'),emails[role]);
 async function create(page, description) {
-  const summary=page.getByText('Abrir chamado',{exact:true});
-  if(!await summary.evaluate(el=>el.parentElement.open)) await summary.click();
+  await page.getByRole('button',{name:'Abrir chamado',exact:true}).click();
   const select=page.getByLabel('Equipamento',{exact:true});
   await select.selectOption({index:1});
   await page.getByLabel('Descrição do problema',{exact:true}).fill(description);

@@ -1,0 +1,15 @@
+@using ADSync.Client.Services
+@inject NotificationService Notifications
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public NotificationKind Kind { get; set; } = NotificationKind.Information;
+    string? previous;
+    NotificationKind previousKind;
+    protected override void OnParametersSet()
+    {
+        if (Message == previous && Kind == previousKind) return;
+        previous = Message; previousKind = Kind;
+        Notifications.Show(Message, Kind);
+    }
+}

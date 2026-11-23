@@ -1,26 +1,25 @@
 @using ADSync.Application.DTOs
 @using ADSync.Client.Services
 @inject ManutencaoClient Client
+@inject NotificationService Notifications
 
 @if (Client.Role("Gestor"))
 {
     <h1>Cadastros</h1>
     <p>Gerencie equipamentos, peças e causas de falha.</p>
-    @if (Client.ReadOnlyMode) { <p role="status">Consulta disponível. Para gravar, o ambiente precisa estar autorizado e configurado para escrita.</p> }
+    @if (Client.ReadOnlyMode) { <AppNotice Message="Consulta disponível. Para gravar, o ambiente precisa estar autorizado e configurado para escrita." Kind="NotificationKind.Warning" /> }
     <label>Buscar nos cadastros<input @bind="search" @bind:event="oninput" /></label>
     <button type="button" @onclick="Refresh" disabled="@Busy">Atualizar cadastros</button>
-    @if (message.Length > 0) { <p class="message" role="status">@message</p> }
-    @if (error.Length > 0) { <p class="message" role="alert">@error</p> }
     @if (loading) { <p role="status">Carregando cadastros…</p> }
 
     <section class="card">
         <h2>Equipamentos</h2>
         @if (!Client.ReadOnlyMode)
         {
-            <EditForm Model="equipmentDraft" OnValidSubmit="SaveEquipment">
-                <DataAnnotationsValidator /><ValidationSummary />
+            <AppModal Inline="@(equipmentId is null)" Title='@(equipmentId is null ? "Novo equipamento" : "Editar equipamento")' Busy="Busy" OnClose="ResetEquipment" @key='("equipment-editor", equipmentId)'>
+            <EditForm novalidate Model="equipmentDraft" OnValidSubmit="SaveEquipment" OnInvalidSubmit="Notifications.Validation" @key="equipmentDraft">
+                <DataAnnotationsValidator />
                 <fieldset class="workspace" disabled="@Busy">
-                    <legend>@(equipmentId is null ? "Novo equipamento" : "Editar equipamento")</legend>
                     <label>Nome<InputText @bind-Value="equipmentDraft.Nome" /></label>
                     <label>Código de patrimônio<InputText @bind-Value="equipmentDraft.CodigoPatrimonio" /></label>
                     <label>Setor<InputText @bind-Value="equipmentDraft.Setor" /></label>
@@ -28,6 +27,7 @@
                     <button type="button" @onclick="ResetEquipment">Cancelar</button>
                 </fieldset>
             </EditForm>
+            </AppModal>
         }
         @if (!equipment.Any(e => Match(e.Nome, e.CodigoPatrimonio, e.Setor))) { <p>Nenhum equipamento encontrado.</p> }
         @foreach (var e in equipment.Where(e => Match(e.Nome, e.CodigoPatrimonio, e.Setor)))
@@ -47,8 +47,8 @@
         <h2>Peças e estoque</h2>
         @if (!Client.ReadOnlyMode)
         {
-            <EditForm Model="partDraft" OnValidSubmit="SavePart">
-                <DataAnnotationsValidator /><ValidationSummary />
+            <EditForm novalidate Model="partDraft" OnValidSubmit="SavePart" OnInvalidSubmit="Notifications.Validation">
+                <DataAnnotationsValidator />
                 <fieldset class="workspace" disabled="@Busy">
                     <legend>@(partId is null ? "Nova peça" : "Editar peça")</legend>
                     <label>Código<InputText @bind-Value="partDraft.Codigo" /></label>
@@ -70,8 +70,8 @@
                     <button type="button" disabled="@Busy" @onclick="() => BeginStock(p.Id)">Entrada de estoque</button>
                     @if (stockId == p.Id)
                     {
-                        <EditForm Model="stockDraft" OnValidSubmit="SaveStock">
-                            <DataAnnotationsValidator /><ValidationSummary />
+                        <EditForm novalidate Model="stockDraft" OnValidSubmit="SaveStock" OnInvalidSubmit="Notifications.Validation">
+                            <DataAnnotationsValidator />
                             <fieldset class="workspace" disabled="@Busy">
                                 <label>Quantidade recebida<InputNumber @bind-Value="stockDraft.Quantidade" /></label>
                                 <button type="submit">Confirmar entrada</button><button type="button" @onclick="() => stockId = null">Cancelar</button>
@@ -87,8 +87,8 @@
         <h2>Causas de falha</h2>
         @if (!Client.ReadOnlyMode)
         {
-            <EditForm Model="causeDraft" OnValidSubmit="SaveCause">
-                <DataAnnotationsValidator /><ValidationSummary />
+            <EditForm novalidate Model="causeDraft" OnValidSubmit="SaveCause" OnInvalidSubmit="Notifications.Validation">
+                <DataAnnotationsValidator />
                 <fieldset class="workspace" disabled="@Busy">
                     <legend>@(causeId is null ? "Nova causa de falha" : "Editar causa de falha")</legend>
                     <label>Descrição<InputText @bind-Value="causeDraft.Descricao" /></label>
@@ -148,7 +148,7 @@
             await action();
         }
         catch (Exception ex) { error = ex.Message; }
-        finally { working = false; }
+        finally { working = false; Notifications.Report(error, message); }
     }
     Task Refresh() => Run(Load);
     async Task Saved()
@@ -160,7 +160,7 @@
     void ResetEquipment() { equipmentId = null; equipmentDraft = new(); }
     void ResetPart() { partId = null; partDraft = new(); }
     void ResetCause() { causeId = null; causeDraft = new(); }
-    void Edit(EquipamentoDto e) { equipmentId = e.Id; equipmentDraft = new() { Nome = e.Nome, CodigoPatrimonio = e.CodigoPatrimonio, Setor = e.Setor }; }
+    void Edit(EquipamentoDto e) { error = message = ""; equipmentId = e.Id; equipmentDraft = new() { Nome = e.Nome, CodigoPatrimonio = e.CodigoPatrimonio, Setor = e.Setor }; }
     void Edit(PecaDto p) { partId = p.Id; partDraft = new() { Nome = p.Nome, Codigo = p.Codigo, Critica = p.Critica }; }
     void Edit(CausaFalhaDto c) { causeId = c.Id; causeDraft = new() { Descricao = c.Descricao }; }
     void BeginStock(Guid id) { stockId = id; stockDraft = new() { Quantidade = 1 }; }

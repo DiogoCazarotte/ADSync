@@ -83,12 +83,60 @@ Check(propria.Status == StatusOS.EmAndamento && repo.Saves == 1, "Técnico respo
 await Denied(async () => { await service.PausarAsync(propria.Id, outro, "Teste", null); });
 Console.WriteLine("PASS: início exige atribuição prévia e mantém o atendimento do responsável.");
 
+Login(operador, "Operador");
+var saves = repo.Saves;
+var originalStatus = propria.Status;
+var originalTechnician = propria.TecnicoId;
+var originalEvents = propria.RegistrosTempo.Count;
+var edited = await controller.EditarDescricao(propria.Id, new() { DescricaoProblema = "  Vazamento corrigido na descrição  " });
+Check(((OrdemServicoDetalheDto)((OkObjectResult)edited.Result!).Value!).DescricaoProblema == "Vazamento corrigido na descrição", "Descrição não atualizada na resposta.");
+Check(propria.DescricaoProblema == "Vazamento corrigido na descrição" && repo.Saves == saves + 1, "Correção não persistida.");
+Check(propria.Status == originalStatus && propria.TecnicoId == originalTechnician && propria.RegistrosTempo.Count == originalEvents, "Edição alterou o atendimento.");
+await Denied(async () => { await controller.EditarDescricao(alheia.Id, new() { DescricaoProblema = "Alteração indevida" }); });
+foreach (var text in new[] { "", "   ", new string('a', 2001) })
+{
+    try { await service.EditarDescricaoAsync(propria.Id, operador, false, text); throw new Exception("Descrição inválida aceita."); }
+    catch (RegraNegocioException) { }
+}
+Check(repo.Saves == saves + 1 && alheia.DescricaoProblema == "", "Tentativa recusada salvou alterações.");
+Login(outro, "Gestor");
+await controller.EditarDescricao(propria.Id, new() { DescricaoProblema = new string('a', 2000) });
+Check(propria.DescricaoProblema.Length == 2000, "Gestor não corrigiu OS de outro operador ou limite de 2000 incorreto.");
+Console.WriteLine("PASS: operador corrige apenas suas OS; gestor corrige todas; validação e atendimento preservados.");
+
+var scheduled = new OrdemServico { Id = Guid.NewGuid(), TecnicoId = tecnico, TipoManutencao = TipoManutencao.Preventiva, DataAbertura = DateTimeOffset.UtcNow.AddDays(1) };
+var scheduledRepo = new Orders([scheduled]);
+try
+{
+    await new OrdemServicoService(scheduledRepo, null!, null!, null!, null!).IniciarAsync(scheduled.Id, tecnico, DateTimeOffset.UtcNow.AddMinutes(4));
+    throw new Exception("API permitiu iniciar preventiva futura.");
+}
+catch (RegraNegocioException) { }
+Check(scheduled.Status == StatusOS.Aberta && scheduled.RegistrosTempo.Count == 0 && scheduledRepo.Saves == 0, "Início antecipado gravou dados.");
+Console.WriteLine("PASS: início direto pela API também bloqueia preventiva futura sem gravar alterações.");
+
 var services = new ServiceCollection();
 services.AddLogging();
 services.AddAuthorization();
 using var provider = services.BuildServiceProvider();
 var policies = provider.GetRequiredService<IAuthorizationPolicyProvider>();
 var authorization = provider.GetRequiredService<IAuthorizationService>();
+foreach (var (type, action, allowedRoles) in new[]
+{
+    (typeof(OrdensServicoController), nameof(OrdensServicoController.EditarDescricao), new[] { "Operador", "Gestor" }),
+    (typeof(UsuariosController), nameof(UsuariosController.AlterarSenha), new[] { "Gestor" })
+})
+{
+    var attributes = type.GetCustomAttributes<AuthorizeAttribute>().Concat(type.GetMethod(action)!.GetCustomAttributes<AuthorizeAttribute>());
+    var policy = (await AuthorizationPolicy.CombineAsync(policies, attributes))!;
+    foreach (var role in new[] { "Operador", "Tecnico", "Gestor", "Desconhecido" })
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, role)], "test"));
+        Check((await authorization.AuthorizeAsync(user, null, policy)).Succeeded == allowedRoles.Contains(role), $"Permissão incorreta em {action} para {role}.");
+    }
+    Check(!(await authorization.AuthorizeAsync(new ClaimsPrincipal(new ClaimsIdentity()), null, policy)).Succeeded, $"Anônimo autorizado em {action}.");
+}
+Console.WriteLine("PASS: políticas da API restringem edição da descrição e troca de senha aos perfis autorizados.");
 foreach (var type in new[] { typeof(PecasController), typeof(PlanosPreventivosController) })
 {
     foreach (var method in type.GetMethods().Where(m => m.GetCustomAttributes().Any(a => a is Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute)))
@@ -100,11 +148,13 @@ foreach (var type in new[] { typeof(PecasController), typeof(PlanosPreventivosCo
             var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, role)], "test"));
             var allowed = (await authorization.AuthorizeAsync(user, null, policy)).Succeeded;
             var isRead = method.GetCustomAttribute<HttpGetAttribute>() is not null;
-            Check(allowed == (role == "Gestor" || role == "Tecnico" && isRead), $"Permissão incorreta em {type.Name}.{method.Name} para {role}.");
+            var startsPreventive = type == typeof(PlanosPreventivosController) && method.Name == nameof(PlanosPreventivosController.Iniciar);
+            var expected = startsPreventive ? role == "Tecnico" : role == "Gestor" || role == "Tecnico" && isRead;
+            Check(allowed == expected, $"Permissão incorreta em {type.Name}.{method.Name} para {role}.");
         }
     }
 }
-Console.WriteLine("PASS: políticas de estoque/preventivas bloqueiam operador; técnico consulta; somente gestor altera.");
+Console.WriteLine("PASS: técnico inicia preventivas; somente gestor altera planos e estoque; operador não acessa essas ações.");
 
 sealed class Orders(List<OrdemServico> items) : IOrdemServicoRepository
 {

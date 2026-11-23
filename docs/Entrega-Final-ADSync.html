@@ -1,0 +1,908 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>ADSync ? Entrega Final</title><style>
+@page { size: A4; margin: 2cm 2.2cm 2cm 2.5cm; }
+body { font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.35; color: #202020; }
+h1 { font-size: 17pt; margin-top: 0; margin-bottom: 14pt; page-break-before: always; color: #173b69; }
+h1:first-child { page-break-before: auto; }
+h2 { font-size: 14pt; margin-top: 18pt; margin-bottom: 8pt; color: #173b69; }
+h3 { font-size: 12pt; margin-top: 14pt; margin-bottom: 6pt; color: #173b69; }
+h4 { font-size: 11pt; margin-top: 12pt; margin-bottom: 4pt; }
+p { margin: 0 0 7pt; text-align: justify; }
+.capa { text-align: center; padding-top: 1.5cm; font-size: 13pt; }
+.capa p { text-align: center; margin: 0 0 10pt; }
+.capa img { width: 7cm; height: auto; margin: 0 auto 2cm; }
+.capa-title { font-size: 28pt; font-weight: bold; margin: 1.3cm 0 0; color: #173b69; }
+.capa h2 { font-size: 18pt; margin: 6pt 0; }
+.capa h3 { font-size: 14pt; margin: 6pt 0 1.2cm; }
+.page-break { page-break-before: always; break-before: page; height: 0; }
+table { width: 100%; border-collapse: collapse; margin: 8pt 0 12pt; font-size: 9.5pt; page-break-inside: auto; }
+th, td { border: 0.6pt solid #7d8792; padding: 5pt 6pt; vertical-align: top; }
+th { background: #eaf0f6; text-align: left; }
+tr { page-break-inside: avoid; }
+ul, ol { margin: 2pt 0 8pt; padding-left: 22pt; }
+li { margin-bottom: 4pt; }
+.figura { margin: 12pt 0 16pt; text-align: center; page-break-inside: avoid; }
+.figura p { text-align: center; }
+.figura img { display: block; margin: 8pt auto; max-width: 92%; max-height: 8in; }
+.figura-diagrama img { max-width: 80%; max-height: 6.8in; }
+img { max-width: 100%; height: auto; }
+strong { color: #1b2b3c; }
+</style></head><body><div class="capa">
+<p><img src="entrega-final-assets/figura1.png" alt="SENAI" /></p>
+<p>Curso Superior de Tecnologia em Análise e Desenvolvimento de Sistemas<br />
+Projeto Integrador Interdisciplinar 2</p>
+<p class="capa-title">ADSync</p>
+<h2>Gestão de Ordens de Serviço</h2>
+<h3>NexService</h3>
+<p><strong>Equipe</strong></p>
+<p>Daniel Pacheco da Silva Rodrigues<br />
+Diogo Henrique de O. Cazarotte<br />
+Lucas Borges Silva<br />
+Matheus Basalia de Lima</p>
+<p>Ribeirão Preto – SP<br />
+2026/2</p>
+</div>
+<div class="page-break"></div>
+<h1>Identificação do Projeto</h1>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Informação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nome do projeto</td>
+<td>ADSync</td>
+</tr>
+<tr>
+<td>Nome técnico do sistema</td>
+<td>Gestão de Ordens de Serviço</td>
+</tr>
+<tr>
+<td>Nome comercial</td>
+<td>NexService</td>
+</tr>
+<tr>
+<td>Curso</td>
+<td>CST em Análise e Desenvolvimento de Sistemas – SENAI Ribeirão Preto</td>
+</tr>
+<tr>
+<td>Unidades curriculares</td>
+<td>Desenvolvimento Back-end, Frameworks Front-end, Ciência de Dados, Computação em Nuvem e Projeto Integrador Interdisciplinar 2</td>
+</tr>
+<tr>
+<td>Docente responsável</td>
+<td>Prof. MSc. Gustavo Martins Nunes Avellar</td>
+</tr>
+<tr>
+<td>Equipe</td>
+<td>Daniel Pacheco da Silva Rodrigues; Diogo Henrique de O. Cazarotte; Lucas Borges Silva; Matheus Basalia de Lima</td>
+</tr>
+</tbody>
+</table>
+<h2>Descrição do Documento</h2>
+<p>Este documento apresenta o problema, os requisitos, os modelos, a estratégia de qualidade e o desenvolvimento do ADSync (NexService), sistema de apoio à gestão de ordens de serviço de manutenção. A proposta foi elaborada para o contexto da SustenNutri Nutrição Animal Ltda. O texto diferencia requisitos do produto, funcionalidades implementadas e itens que ainda precisam de validação com os usuários da empresa.</p>
+<div class="page-break"></div>
+<h2>Histórico de Revisões</h2>
+<table>
+<thead>
+<tr>
+<th>Versão</th>
+<th>Data</th>
+<th>Autor(es)</th>
+<th>Alterações</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.0</td>
+<td>20/09/2026</td>
+<td>Diogo</td>
+<td>Início da documentação do projeto.</td>
+</tr>
+<tr>
+<td>1.1</td>
+<td>20/10/2026</td>
+<td>Diogo e Lucas</td>
+<td>Ajustes de identificação, stakeholders, histórias de usuário, regras de negócio, diagramas, glossário e referências.</td>
+</tr>
+<tr>
+<td>2.0</td>
+<td>16/11/2026</td>
+<td>Equipe ADSync</td>
+<td>Conclusão dos capítulos de solução, qualidade e desenvolvimento; revisão dos casos de uso do ciclo da O.S.; inclusão de citações no contexto e motivação, ensacadeiras e telas do sistema; atualização do escopo para refletir a implementação e suas limitações.</td>
+</tr>
+</tbody>
+</table>
+<div class="page-break"></div>
+<h1>1. Introdução e Planejamento</h1>
+<h2>1.1 Contexto do Problema</h2>
+<p>A SustenNutri Nutrição Animal Ltda. atua na produção de alimentos para animais. Nesse ambiente, a disponibilidade dos equipamentos da linha produtiva é importante para manter o fluxo de fabricação e expedição. Entre os equipamentos considerados no cenário do projeto estão as máquinas ensacadeiras do setor de ensaque, além de motores e equipamentos de moagem. Uma falha em uma ensacadeira pode interromper a etapa de acondicionamento do produto e exigir coordenação rápida entre produção e manutenção. Os nomes “Ensacadeira Linha 1” e “Ensacadeira Linha 2” aparecem como exemplos de equipamentos cadastráveis no protótipo; não substituem o inventário patrimonial oficial da empresa.</p>
+<p>No levantamento inicial descrito pela equipe, a comunicação de falhas e o acompanhamento das intervenções não contavam com um registro digital único, padronizado e consultável. Quando o chamado é transmitido informalmente, torna-se mais difícil identificar quem solicitou o reparo, qual equipamento parou, quem foi designado, quanto tempo o atendimento permaneceu em execução ou pausa e quais peças foram consumidas. A ausência de histórico também reduz a capacidade de comparar ocorrências e planejar ações preventivas.</p>
+<p>A manutenção contribui para a confiabilidade e a disponibilidade dos ativos, e seus conceitos e indicadores dependem de registros consistentes das falhas e intervenções (ABNT, 1994; KARDEC; NASCIF, 2012). Estudos de gestão da manutenção em ambiente industrial também destacam a necessidade de organizar informações sobre ocorrências, recursos e intervenções para orientar melhorias (VALENTIM, 2020). Por isso, o problema tratado não é apenas a abertura de um chamado: é a falta de rastreabilidade ao longo do ciclo da ordem de serviço (O.S.).</p>
+<p>O contexto ainda inclui técnicos que podem trabalhar em áreas com conectividade instável. Uma ferramenta que dependa de conexão contínua pode dificultar a anotação de um atendimento em campo; a abordagem offline-first registra dados localmente e os sincroniza quando há conexão, desde que a aplicação e o fluxo tenham sido projetados e configurados para isso (KLEPPMANN et al., 2019; MDN WEB DOCS, [s.d.]).</p>
+<h2>1.2 Propósito do Sistema</h2>
+<p>O ADSync tem como propósito centralizar o ciclo de manutenção corretiva e preventiva em uma aplicação web: registrar solicitações, acompanhar a atribuição e o atendimento, manter o histórico associado aos equipamentos e disponibilizar informações de apoio à gestão.</p>
+<p>São objetivos específicos:</p>
+<ul>
+<li>substituir a comunicação informal por ordens identificadas, com equipamento, prioridade, situação e responsável;</li>
+<li>registrar início, pausa, retomada e conclusão do atendimento, preservando a sequência temporal;</li>
+<li>registrar causa da falha e peças utilizadas, atualizando o saldo do estoque no servidor após confirmação;</li>
+<li>dar ao gestor visões de acompanhamento, indicadores e relatório mensal;</li>
+<li>oferecer cadastro de equipamentos, peças, causas, usuários e planos preventivos;</li>
+<li>permitir armazenamento local e sincronização posterior nos fluxos offline habilitados e configurados;</li>
+<li>reduzir retrabalho administrativo e facilitar a consulta do histórico, sem substituir o julgamento técnico da equipe de manutenção.</li>
+</ul>
+<h2>1.3 Escopo do Sistema</h2>
+<p><strong>Incluído:</strong> autenticação e autorização por perfil; abertura e consulta de O.S.; atribuição automática ou manual; transições do atendimento; registro de peças e causa; cadastros administrativos; planos preventivos; painel de indicadores; relatório mensal; experiência PWA e filas locais para operações offline suportadas pela configuração.</p>
+<p><strong>Fora do escopo desta versão:</strong> comando ou monitoramento direto de máquinas; integração confirmada com ERP, CLP, sensores ou sistema de produção; emissão fiscal ou compra automática de peças; definição de metas de SLA pela empresa; implantação em ambiente produtivo; comprovação de disponibilidade, segurança ou desempenho em produção; e substituição do inventário oficial de ativos.</p>
+<p>O sistema e os testes foram desenvolvidos em ambiente controlado. A existência de telas e serviços não comprova, por si só, a validação do processo com todas as pessoas usuárias, a aprovação dos indicadores pela empresa ou a autorização para gravar dados em uma base produtiva.</p>
+<h2>1.4 Stakeholders</h2>
+<p>As personas abaixo representam os papéis previstos. Os nomes são fictícios e não identificam funcionários da empresa.</p>
+<table>
+<thead>
+<tr>
+<th>Persona</th>
+<th>Papel e interesse</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Paulo Henrique Souza Martins</td>
+<td>Gestor de manutenção; distribui atendimentos, administra cadastros, acompanha pendências e analisa informações gerenciais.</td>
+</tr>
+<tr>
+<td>Marcos Antônio Ribeiro Teixeira</td>
+<td>Técnico de manutenção; atende O.S. atribuídas, registra tempos, peças, diagnóstico e conclusão.</td>
+</tr>
+<tr>
+<td>Renata Oliveira Campos Dias</td>
+<td>Operadora de produção; comunica falhas em equipamentos e acompanha as solicitações que abriu.</td>
+</tr>
+<tr>
+<td>Equipe de manutenção e produção da SustenNutri</td>
+<td>Usuárias e usuários que deverão validar vocabulário, prioridade, cadastro dos ativos e fluxos reais antes de uma implantação.</td>
+</tr>
+<tr>
+<td>Equipe ADSync e docente responsável</td>
+<td>Responsáveis pelo desenvolvimento acadêmico, avaliação e revisão da documentação.</td>
+</tr>
+</tbody>
+</table>
+<h2>1.5 Modelo de Processo de Desenvolvimento de Software</h2>
+<p>Foi adotado um processo incremental inspirado em Lean Development. A equipe prioriza o fluxo que entrega valor operacional, implementa uma parte pequena, verifica seu comportamento e incorpora feedback antes de ampliar o escopo (POPPENDIECK; POPPENDIECK, 2003). O trabalho foi organizado em ciclos de levantamento, modelagem, implementação, verificação e revisão.</p>
+<p>No início, o foco esteve na abertura e acompanhamento das O.S. A evolução acrescentou papéis de acesso, atribuição, registros de atendimento, estoque, planos preventivos, indicadores, relatórios e experiência offline. A revisão do texto também é incremental: os comentários docentes sobre referências, ensacadeiras, nome dos casos de uso, posição da Figura 1 e capítulo de desenvolvimento foram tratados nesta versão. A validação operacional final depende de retorno da empresa e da equipe revisora.</p>
+<h1>2. Engenharia de Requisitos</h1>
+<h2>2.1 Perspectiva do Produto</h2>
+<p>O ADSync é uma aplicação web responsiva composta por cliente Blazor WebAssembly e API ASP.NET Core. O cliente envia requisições autenticadas à API, que aplica as regras de negócio e consulta ou altera os dados no PostgreSQL por meio do Entity Framework Core. A base pode ser hospedada no Supabase, mas a solução não depende de integração com o processo de automação das máquinas.</p>
+<p>O produto é novo para o fluxo documentado, e não uma extensão de um sistema de O.S. existente informado pela empresa. Os contextos de uso são: abertura de chamados pela produção; execução e registro dos atendimentos pelos técnicos; e consulta, atribuição, administração e análise pelo gestor. A versão PWA pode armazenar determinadas ações no navegador e sincronizá-las depois. Consultas e gravações dependem da API e das permissões em vigor; operações offline não devem ser interpretadas como confirmação de gravação no servidor.</p>
+<p>O uso de nuvem é compatível com a definição de acesso sob demanda a recursos compartilhados e configuráveis (MELL; GRANCE, 2011). A escolha concreta de provedor, política de backup, disponibilidade e configuração de produção, porém, exige validação e operação próprias.</p>
+<h2>2.2 Classes de Usuários</h2>
+<table>
+<thead>
+<tr>
+<th>Perfil</th>
+<th>Responsabilidades e acesso</th>
+<th>Conhecimento esperado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gestor</td>
+<td>Consulta todas as O.S.; atribui técnicos; mantém cadastros e usuários; gerencia preventivas; consulta indicadores e relatórios.</td>
+<td>Conhece o processo de manutenção e os critérios de gestão; não precisa dominar programação.</td>
+</tr>
+<tr>
+<td>Técnico</td>
+<td>Consulta O.S. atribuídas; registra início, pausa, retomada, peças, causa, observações e conclusão; consulta equipamentos e planos conforme as permissões.</td>
+<td>Conhece manutenção dos equipamentos e utiliza o fluxo guiado para registrar o atendimento.</td>
+</tr>
+<tr>
+<td>Operador</td>
+<td>Abre solicitações e acompanha somente as próprias O.S.</td>
+<td>Utiliza o sistema para descrever a ocorrência e identificar o equipamento.</td>
+</tr>
+</tbody>
+</table>
+<h2>2.3 Requisitos Funcionais</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requisito funcional</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RF01</td>
+<td>O sistema deve autenticar usuários e identificar seus papéis.</td>
+</tr>
+<tr>
+<td>RF02</td>
+<td>O sistema deve permitir que Operador ou Gestor abra uma O.S. informando equipamento, descrição e prioridade.</td>
+</tr>
+<tr>
+<td>RF03</td>
+<td>O sistema deve atribuir automaticamente um técnico ativo elegível; o Gestor pode atribuir ou alterar o responsável pelas regras de acesso.</td>
+</tr>
+<tr>
+<td>RF04</td>
+<td>O sistema deve permitir a consulta e o filtro de O.S. por situação, prioridade, número ou equipamento, respeitando o perfil.</td>
+</tr>
+<tr>
+<td>RF05</td>
+<td>O sistema deve permitir ao Técnico iniciar, pausar, retomar e concluir uma O.S. atribuída a ele, registrando os eventos de tempo.</td>
+</tr>
+<tr>
+<td>RF06</td>
+<td>O sistema deve exigir causa de falha para concluir uma manutenção corretiva e permitir observações técnicas.</td>
+</tr>
+<tr>
+<td>RF07</td>
+<td>O sistema deve registrar as peças usadas em uma O.S. e atualizar o estoque após confirmação da operação pelo servidor.</td>
+</tr>
+<tr>
+<td>RF08</td>
+<td>O sistema deve manter histórico de O.S., causas, tempos e peças associados ao equipamento.</td>
+</tr>
+<tr>
+<td>RF09</td>
+<td>O sistema deve permitir registrar horas diárias efetivamente operadas por equipamento quando o recurso de MTBF por horas estiver habilitado.</td>
+</tr>
+<tr>
+<td>RF10</td>
+<td>O sistema deve apresentar ao Gestor indicadores filtráveis por período e setor, com método e limitações descritos na interface.</td>
+</tr>
+<tr>
+<td>RF11</td>
+<td>O sistema deve emitir relatório mensal com resumo, histórico, agenda e recomendações justificadas a partir dos dados disponíveis.</td>
+</tr>
+<tr>
+<td>RF12</td>
+<td>O sistema deve permitir ao Gestor administrar usuários e os cadastros de equipamentos, peças e causas de falha, quando o modo de escrita estiver autorizado.</td>
+</tr>
+<tr>
+<td>RF13</td>
+<td>O sistema deve permitir ao Gestor ou Técnico consultar e manter planos preventivos segundo as permissões aplicáveis.</td>
+</tr>
+<tr>
+<td>RF14</td>
+<td>O sistema deve armazenar localmente as ações offline previstas e sincronizá-las com identificação idempotente quando a configuração de atendimento offline estiver habilitada.</td>
+</tr>
+</tbody>
+</table>
+<p>RF09 e RF14 são condicionais à configuração do ambiente e à disponibilidade dos dados necessários. Os indicadores implementados não representam todos os indicadores inicialmente idealizados: em particular, o produto atual não comprova SLA ou taxa de retrabalho operacional.</p>
+<h2>2.4 Requisitos Não Funcionais</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Categoria</th>
+<th>Requisito não funcional</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RNF01</td>
+<td>Usabilidade</td>
+<td>A interface deve apresentar navegação e formulários compreensíveis para os três perfis, com validação e mensagens de erro visíveis.</td>
+</tr>
+<tr>
+<td>RNF02</td>
+<td>Portabilidade</td>
+<td>O cliente web deve adaptar-se a telas de computador e dispositivos móveis com navegador compatível.</td>
+</tr>
+<tr>
+<td>RNF03</td>
+<td>Segurança</td>
+<td>O acesso deve exigir autenticação; as rotas da API devem autorizar cada operação por papel e escopo do usuário.</td>
+</tr>
+<tr>
+<td>RNF04</td>
+<td>Integridade</td>
+<td>Alterações críticas de domínio devem ser validadas no servidor; operações concorrentes e reenvios devem preservar consistência e idempotência quando aplicável.</td>
+</tr>
+<tr>
+<td>RNF05</td>
+<td>Conectividade</td>
+<td>A experiência offline deve informar o estado da conexão, preservar pendências locais e não apresentar como concluída uma operação ainda não confirmada pelo servidor.</td>
+</tr>
+<tr>
+<td>RNF06</td>
+<td>Manutenibilidade</td>
+<td>O código deve separar domínio, aplicação, infraestrutura, API e cliente, facilitando correção e evolução.</td>
+</tr>
+<tr>
+<td>RNF07</td>
+<td>Infraestrutura</td>
+<td>O sistema deve utilizar PostgreSQL e poder operar com serviço gerenciado, sem exigir servidor de banco local para o usuário final. Backup e recuperação continuam sendo responsabilidade operacional a definir.</td>
+</tr>
+</tbody>
+</table>
+<h2>2.5 Histórias de Usuário</h2>
+<p>As histórias seguem o formato “Como perfil, quero ação, para benefício”, conforme Cohn (2004).</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>História de usuário</th>
+<th>Requisitos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HU01</td>
+<td>Como Operador, quero abrir um chamado com equipamento, descrição e prioridade, para comunicar uma falha de forma rastreável.</td>
+<td>RF02</td>
+</tr>
+<tr>
+<td>HU02</td>
+<td>Como Gestor, quero que chamados sejam distribuídos por carga dos técnicos ativos, para equilibrar a fila inicial.</td>
+<td>RF03</td>
+</tr>
+<tr>
+<td>HU03</td>
+<td>Como Gestor, quero atribuir manualmente uma O.S. sem responsável, para manter o atendimento sob controle quando não houver técnico elegível.</td>
+<td>RF03</td>
+</tr>
+<tr>
+<td>HU04</td>
+<td>Como Técnico, quero registrar início, pausa, retomada e conclusão, para documentar o tempo efetivamente trabalhado.</td>
+<td>RF05</td>
+</tr>
+<tr>
+<td>HU05</td>
+<td>Como Técnico, quero informar causa e observações, para deixar um histórico técnico padronizado.</td>
+<td>RF06, RF08</td>
+</tr>
+<tr>
+<td>HU06</td>
+<td>Como Técnico, quero registrar peças utilizadas, para manter o histórico e o saldo atualizado.</td>
+<td>RF07, RF08</td>
+</tr>
+<tr>
+<td>HU07</td>
+<td>Como Operador, quero consultar apenas as solicitações que abri, para acompanhar seu andamento.</td>
+<td>RF04</td>
+</tr>
+<tr>
+<td>HU08</td>
+<td>Como Técnico, quero consultar apenas as O.S. atribuídas a mim, para priorizar os meus atendimentos.</td>
+<td>RF04</td>
+</tr>
+<tr>
+<td>HU09</td>
+<td>Como Gestor, quero comparar indicadores por período e setor, para acompanhar tendências com as limitações dos dados visíveis.</td>
+<td>RF09, RF10</td>
+</tr>
+<tr>
+<td>HU10</td>
+<td>Como Gestor, quero consultar o relatório mensal, para examinar conclusões, pendências, peças, agenda e recomendações.</td>
+<td>RF11</td>
+</tr>
+<tr>
+<td>HU11</td>
+<td>Como Gestor, quero administrar usuários e cadastros, para manter os dados operacionais atualizados.</td>
+<td>RF12</td>
+</tr>
+<tr>
+<td>HU12</td>
+<td>Como Gestor ou Técnico, quero gerenciar planos preventivos, para organizar inspeções e tarefas programadas.</td>
+<td>RF13</td>
+</tr>
+<tr>
+<td>HU13</td>
+<td>Como Técnico, quero preservar registros offline e enviá-los quando a conexão voltar, para não perder as anotações feitas em campo.</td>
+<td>RF14</td>
+</tr>
+</tbody>
+</table>
+<h2>2.6 Regras de Negócio</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Regra</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RN01</td>
+<td>Cada O.S. recebe identificador/número único e inicia com situação “Aberta”.</td>
+</tr>
+<tr>
+<td>RN02</td>
+<td>A atribuição automática considera técnicos ativos e a quantidade de O.S. abertas, em andamento ou pausadas. O desempate é estável; sem técnico ativo, a O.S. permanece sem responsável para atribuição manual pelo Gestor. Planos preventivos conservam o responsável configurado no plano.</td>
+</tr>
+<tr>
+<td>RN03</td>
+<td>O Técnico só pode iniciar uma O.S. atribuída a ele; o Gestor pode consultar todas e o Operador somente as O.S. que abriu.</td>
+</tr>
+<tr>
+<td>RN04</td>
+<td>O tempo de trabalho ativo soma intervalos entre início/retomada e pausa/conclusão; intervalos pausados e o tempo anterior ao início não entram no MTTR de trabalho ativo.</td>
+</tr>
+<tr>
+<td>RN05</td>
+<td>Uma O.S. não pode ser concluída sem causa de falha quando o fluxo exigir diagnóstico.</td>
+</tr>
+<tr>
+<td>RN06</td>
+<td>A baixa de estoque ocorre no servidor após validação de peça, quantidade e estado da O.S.</td>
+</tr>
+<tr>
+<td>RN07</td>
+<td>Eventos offline têm identificador e horário de ocorrência; um reenvio idêntico não deve duplicar o efeito. Conflitos temporais ou de atribuição devem ser apresentados para revisão, não descartados silenciosamente.</td>
+</tr>
+<tr>
+<td>RN08</td>
+<td>Horas não registradas em um dia não equivalem a zero horas; a cobertura incompleta impede o uso daquele equipamento no cálculo de MTBF por horas.</td>
+</tr>
+<tr>
+<td>RN09</td>
+<td>A geração automática de O.S. preventivas, o seed e as gravações dependem de autorização/configuração explícita do ambiente.</td>
+</tr>
+</tbody>
+</table>
+<h2>2.7 Casos de Uso</h2>
+<p>Os casos de uso descrevem objetivos observáveis dos atores e suas interações com o sistema (SOMMERVILLE, 2019). A autenticação é pré-condição dos fluxos protegidos e não se confunde com um caso de uso do ciclo da O.S.</p>
+<h3>2.7.1 Diagrama de Casos de Uso – Geral do Sistema</h3>
+<div class="figura figura-diagrama">
+<p><img src="entrega-final-assets/figura2.png" alt="Diagrama geral de casos de uso" /></p>
+<p><strong>Figura 1 – Diagrama geral de casos de uso do ADSync.</strong><br />
+Fonte: elaborado pela equipe (2026).</p>
+</div>
+<h3>2.7.2 Diagrama de Casos de Uso – Ciclo da O.S.</h3>
+<div class="figura figura-diagrama">
+<p><img src="entrega-final-assets/figura3.png" alt="Diagrama de casos de uso do ciclo da O.S." /></p>
+<p><strong>Figura 2 – Casos de uso do ciclo da ordem de serviço.</strong><br />
+Fonte: elaborado pela equipe (2026).</p>
+</div>
+<h3>2.7.3 Descrição Textual dos Casos de Uso</h3>
+<h4>Caso de Uso: Executar atendimento</h4>
+<p><strong>Atores:</strong> Técnico de Manutenção.<br />
+<strong>Descrição:</strong> executar o atendimento de uma O.S. atribuída ao Técnico. É o objetivo geral que agrupa as ações específicas do diagrama: registrar início/pausa/conclusão, registrar peças e registrar causa da falha.<br />
+<strong>Pré-condições:</strong> usuário autenticado como Técnico; O.S. existente e atribuída ao usuário; cadastros de equipamento, peças e causas disponíveis conforme a operação.<br />
+<strong>Fluxo principal:</strong></p>
+<ol>
+<li>O Técnico abre sua lista de ordens e seleciona uma O.S. atribuída a ele.</li>
+<li>O sistema apresenta equipamento, descrição, prioridade, situação e histórico.</li>
+<li>O Técnico inicia o atendimento; o sistema registra o evento e altera a situação.</li>
+<li>Se houver interrupção, o Técnico informa o motivo da pausa; ao retornar, registra a retomada.</li>
+<li>Se utilizar peça, informa item e quantidade; a API valida a operação e atualiza o estoque.</li>
+<li>O Técnico registra a causa e as observações técnicas.</li>
+<li>O Técnico conclui o atendimento; o sistema valida o estado e grava o evento de conclusão.</li>
+<li>O sistema atualiza a O.S. e apresenta a situação confirmada.</li>
+</ol>
+<p><strong>Fluxos alternativos:</strong><br />
+A. O Técnico pausa e retoma mais de uma vez; cada evento é acrescentado ao histórico.<br />
+B. O Técnico registra uma peça durante atendimento em andamento ou pausado, conforme as regras do domínio.</p>
+<p><strong>Exceções:</strong></p>
+<ol>
+<li>A O.S. não está atribuída ao usuário: a API recusa o acesso.</li>
+<li>A situação não permite a ação ou falta causa obrigatória: a operação é recusada e a tela informa a validação.</li>
+<li>A conexão falha: a ação só fica pendente localmente quando o atendimento offline está habilitado; sem essa configuração, o Técnico deve consultar a O.S. antes de repetir a operação.</li>
+</ol>
+<h4>Caso de Uso: Abrir ordem de serviço</h4>
+<p><strong>Atores:</strong> Operador de Produção ou Gestor de Manutenção.<br />
+<strong>Descrição:</strong> registrar uma solicitação de manutenção para um equipamento, incluindo os dados mínimos para triagem.<br />
+<strong>Pré-condições:</strong> usuário autenticado com papel autorizado; equipamento ativo e disponível para seleção.<br />
+<strong>Fluxo principal:</strong></p>
+<ol>
+<li>O ator seleciona “Abrir chamado”.</li>
+<li>Informa equipamento, descrição do problema e criticidade.</li>
+<li>O sistema valida os campos e cria a O.S. com número único e situação “Aberta”.</li>
+<li>O sistema seleciona técnico ativo com menor quantidade de O.S. pendentes, usando os critérios de desempate definidos.</li>
+<li>O sistema mostra o número da O.S. e o resultado confirmado.</li>
+</ol>
+<p><strong>Fluxos alternativos:</strong><br />
+A. Se não houver técnico ativo, a O.S. continua aberta sem responsável e fica disponível ao Gestor para atribuição manual.<br />
+B. Quando a abertura offline estiver habilitada, o cliente preserva o chamado no dispositivo e tenta sincronizá-lo posteriormente.</p>
+<p><strong>Exceções:</strong></p>
+<ol>
+<li>Campo obrigatório inválido ou equipamento indisponível: o sistema não cria a O.S. e informa o ajuste necessário.</li>
+<li>Falha de comunicação: o formulário/pendência é preservado quando o fluxo local está habilitado; a interface não declara que a API confirmou a gravação.</li>
+</ol>
+<h4>Caso de Uso: Consultar e filtrar ordens de serviço</h4>
+<p><strong>Atores:</strong> Gestor de Manutenção, Técnico de Manutenção e Operador de Produção.<br />
+<strong>Descrição:</strong> localizar ordens e consultar seu estado de acordo com o escopo do perfil.<br />
+<strong>Pré-condições:</strong> usuário autenticado e autorizado.<br />
+<strong>Fluxo principal:</strong></p>
+<ol>
+<li>O ator abre a área de ordens.</li>
+<li>O sistema consulta a API e aplica o escopo do papel: todas para Gestor, atribuídas ao Técnico ou abertas pelo Operador.</li>
+<li>O ator pesquisa por número ou equipamento e, se necessário, filtra por situação ou prioridade.</li>
+<li>O ator seleciona uma O.S. autorizada e consulta detalhes e histórico.</li>
+</ol>
+<p><strong>Fluxos alternativos:</strong> o ator limpa filtros ou atualiza os dados.<br />
+<strong>Exceções:</strong> identificador inexistente ou fora do escopo retorna resposta sem revelar detalhes de outra pessoa; falha de rede é indicada e não deve ser apresentada como uma consulta atualizada.</p>
+<h1>3. Projeto da Solução</h1>
+<h2>3.1 Fluxo de Funcionamento do Sistema</h2>
+<p>O fluxo geral conecta solicitação, atribuição, execução e análise. A atribuição ocorre após a validação da abertura; as ações técnicas são restritas ao responsável; e o Gestor acompanha os dados confirmados no servidor. A sincronização é uma alternativa condicionada à configuração offline.</p>
+<div class="figura figura-diagrama">
+<p><img src="entrega-final-assets/fluxo-operacional.png" alt="Fluxo geral da operação" /></p>
+<p><strong>Figura 3 – Fluxo geral de uma ordem de serviço.</strong><br />
+Fonte: elaborado pela equipe (2026).</p>
+</div>
+<p>Em sequência: (1) o usuário entra no sistema; (2) o Operador registra equipamento, descrição e prioridade; (3) a API valida os dados e cria a O.S.; (4) o sistema tenta atribuir o técnico com menor carga pendente; (5) o Técnico inicia, pausa/retoma e registra peças e diagnóstico; (6) o servidor valida e persiste os eventos; (7) o Gestor consulta ordens, indicadores e relatório. Se não houver conectividade, apenas os fluxos offline habilitados ficam na fila local, aguardando confirmação de sincronização.</p>
+<h2>3.2 Regras de Navegação</h2>
+<p>Após autenticar, a pessoa usuária acessa uma visão geral com ordens recentes, agenda de preventivas (para Gestor e Técnico), estado do dispositivo e atalhos. O menu superior abre as áreas permitidas pelo perfil.</p>
+<table>
+<thead>
+<tr>
+<th>Área</th>
+<th style="text-align:right">Gestor</th>
+<th style="text-align:right">Técnico</th>
+<th style="text-align:right">Operador</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Visão geral</td>
+<td style="text-align:right">Sim</td>
+<td style="text-align:right">Sim</td>
+<td style="text-align:right">Sim</td>
+</tr>
+<tr>
+<td>Ordens de serviço</td>
+<td style="text-align:right">Todas e atribuição</td>
+<td style="text-align:right">Atribuídas ao próprio Técnico</td>
+<td style="text-align:right">Abertas pelo próprio Operador</td>
+</tr>
+<tr>
+<td>Indicadores e relatórios</td>
+<td style="text-align:right">Sim</td>
+<td style="text-align:right">Não</td>
+<td style="text-align:right">Não</td>
+</tr>
+<tr>
+<td>Preventivas e equipamentos/peças</td>
+<td style="text-align:right">Sim</td>
+<td style="text-align:right">Sim, conforme regra</td>
+<td style="text-align:right">Não</td>
+</tr>
+<tr>
+<td>Cadastros e usuários</td>
+<td style="text-align:right">Sim</td>
+<td style="text-align:right">Não</td>
+<td style="text-align:right">Não</td>
+</tr>
+</tbody>
+</table>
+<p>Os botões de ação aparecem conforme o papel e o estado da O.S. A busca rápida direciona à lista de ordens. A ação “Atualizar” refaz consultas. “Sair” encerra a sessão no navegador. A tela deve explicitar erros de conexão, gravação e sincronização.</p>
+<h2>3.3 Arquitetura Conceitual</h2>
+<div class="figura figura-diagrama">
+<p><img src="entrega-final-assets/arquitetura.png" alt="Arquitetura conceitual do ADSync" /></p>
+<p><strong>Figura 4 – Arquitetura conceitual: cliente, API e banco de dados.</strong><br />
+Fonte: elaborado pela equipe (2026).</p>
+</div>
+<p>O cliente Blazor WebAssembly executa no navegador e se comunica por HTTP com a API ASP.NET Core. A API autentica por token, aplica autorização e regras de negócio nos serviços da camada Application, acessa entidades e interfaces de domínio e persiste dados pelo Entity Framework Core/Npgsql no PostgreSQL. O Supabase pode fornecer o PostgreSQL gerenciado, mas não há integração direta entre a aplicação e CLPs, sensores, balanças ou ensacadeiras. No fluxo offline, o navegador preserva as pendências previstas; a API continua sendo a autoridade para confirmação final.</p>
+<h2>3.4 Protótipos e Telas do Sistema</h2>
+<p>As imagens seguintes foram capturadas no cliente do projeto. As telas autenticadas foram preenchidas com registros sintéticos interceptados localmente para ilustração; não exibem dados de funcionários, clientes ou banco de produção.</p>
+<div class="figura">
+<p><img src="entrega-final-assets/01-tela-login.png" alt="Tela de acesso do ADSync" /></p>
+<p><strong>Figura 5 – Tela de acesso do ADSync.</strong><br />
+Fonte: captura da aplicação (2026).</p>
+</div>
+<div class="figura">
+<p><img src="entrega-final-assets/02-visao-geral.png" alt="Visão geral do sistema" /></p>
+<p><strong>Figura 6 – Visão geral do Gestor com dados sintéticos de demonstração.</strong><br />
+Fonte: captura da aplicação; dados fictícios (2026).</p>
+</div>
+<div class="figura">
+<p><img src="entrega-final-assets/03-ordens-servico.png" alt="Lista de ordens de serviço" /></p>
+<p><strong>Figura 7 – Consulta de ordens de serviço com filtros e dados sintéticos.</strong><br />
+Fonte: captura da aplicação; dados fictícios (2026).</p>
+</div>
+<div class="figura">
+<p><img src="entrega-final-assets/04-indicadores.png" alt="Painel de indicadores" /></p>
+<p><strong>Figura 8 – Painel de indicadores com período e setores de demonstração.</strong><br />
+Fonte: captura da aplicação; dados fictícios (2026).</p>
+</div>
+<h2>3.5 Backlog de Tarefas do Produto</h2>
+<p>O ranking considera risco operacional e valor para os perfis. “Prioridade alta” não significa que a tarefa esteja concluída.</p>
+<table>
+<thead>
+<tr>
+<th>Prioridade</th>
+<th>Item de backlog</th>
+<th>Critério de conclusão</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alta</td>
+<td>Validar os fluxos de abertura e atendimento com Operador, Técnico e Gestor da empresa.</td>
+<td>Participantes representativos concluem tarefas e apontam ajustes documentados.</td>
+</tr>
+<tr>
+<td>Alta</td>
+<td>Confirmar inventário, setores, prioridades e critérios de atribuição com a empresa.</td>
+<td>Cadastros e regras aprovados por responsável operacional.</td>
+</tr>
+<tr>
+<td>Alta</td>
+<td>Homologar operações offline em celulares e navegadores usados no chão de fábrica.</td>
+<td>Testes de desconexão, reconexão, duplicidade e conflito com resultado registrado.</td>
+</tr>
+<tr>
+<td>Alta</td>
+<td>Definir backup, restauração, monitoramento e processo de implantação.</td>
+<td>Procedimentos testados em ambiente separado e aprovados pelo responsável.</td>
+</tr>
+<tr>
+<td>Média</td>
+<td>Definir metas e fórmulas oficiais para SLA, retrabalho e MTBF/MTTR.</td>
+<td>Fórmulas, fontes de dados e responsáveis aprovados antes de exibir indicadores adicionais.</td>
+</tr>
+<tr>
+<td>Média</td>
+<td>Revisar a usabilidade e acessibilidade das telas com usuários.</td>
+<td>Testes de tarefa, correções priorizadas e evidências registradas.</td>
+</tr>
+<tr>
+<td>Média</td>
+<td>Definir retenção e gestão de sessões/dados locais no dispositivo.</td>
+<td>Política validada e comportamento testado em logout, troca de usuário e perda do dispositivo.</td>
+</tr>
+<tr>
+<td>Baixa</td>
+<td>Avaliar integração com ERP, inventário ou automação industrial.</td>
+<td>Estudo de viabilidade, segurança e autorização; fora do escopo até aprovação.</td>
+</tr>
+</tbody>
+</table>
+<h1>4. Qualidade e Manutenção</h1>
+<h2>4.1 Plano de Avaliação do Sistema</h2>
+<p>A avaliação deve combinar testes automatizados, testes exploratórios no navegador, verificação de autorização, avaliação de usabilidade e homologação dos fluxos com a empresa. Os testes que gravam dados devem usar banco local isolado e contas fictícias; não devem apontar para o Supabase ou outra base produtiva sem autorização expressa e ambiente aprovado.</p>
+<p>O repositório contém programas de verificação em <code>tests/</code>, incluindo cenários para atribuição, acesso às ordens, indicadores, relatórios, conectividade, cliente e modo somente leitura. Testes de integração com PostgreSQL devem utilizar a configuração local indicada pelo próprio projeto. A avaliação manual deve percorrer os papéis em computador e dispositivo móvel, com conectividade normal e intermitente.</p>
+<p>Critérios gerais: regras de transição respeitadas; consulta restrita ao escopo do perfil; estoque e histórico consistentes; eventos offline preservados e sincronizados sem duplicação; indicadores calculados conforme seus dados de entrada e apresentados com limitações; erros comunicados sem sucesso aparente; e ausência de alteração acidental em bases externas.</p>
+<h2>4.2 Casos de Teste de Software</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Condição e ação</th>
+<th>Resultado esperado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CT01 – Autenticação</td>
+<td>Informar credencial válida e, depois, inválida.</td>
+<td>A credencial válida abre a sessão correspondente; a inválida não expõe áreas protegidas.</td>
+</tr>
+<tr>
+<td>CT02 – Abertura e atribuição</td>
+<td>Abrir O.S. com equipamento válido em ambiente de teste com técnicos ativos.</td>
+<td>O.S. criada como aberta e atribuída pelo critério de carga; sem técnico ativo, fica sem responsável para atribuição manual.</td>
+</tr>
+<tr>
+<td>CT03 – Validação do atendimento</td>
+<td>Técnico não atribuído tenta iniciar; depois, Técnico responsável inicia, pausa e retoma.</td>
+<td>A primeira ação é recusada; as transições autorizadas gravam eventos e mantêm a sequência temporal.</td>
+</tr>
+<tr>
+<td>CT04 – Conclusão e diagnóstico</td>
+<td>Tentar concluir sem causa; repetir com causa válida.</td>
+<td>Primeira tentativa é recusada com mensagem; a segunda conclui e registra o diagnóstico.</td>
+</tr>
+<tr>
+<td>CT05 – Peça e estoque</td>
+<td>Registrar peça e quantidade válidas; tentar quantidade inválida ou saldo insuficiente conforme regra configurada.</td>
+<td>Operação válida atualiza histórico e saldo uma vez; inválida é recusada e não altera o saldo.</td>
+</tr>
+<tr>
+<td>CT06 – Isolamento por papel</td>
+<td>Operador consulta O.S. de outro operador; Técnico acessa ordem de outro técnico; Gestor consulta a fila.</td>
+<td>Operador/Técnico não obtêm dados fora do escopo; Gestor tem a visão gerencial autorizada.</td>
+</tr>
+<tr>
+<td>CT07 – Offline e idempotência</td>
+<td>Registrar evento com conectividade interrompida, reconectar e reenviar identificador já aceito.</td>
+<td>Pendência fica preservada até confirmação; evento não é aplicado duas vezes; conflito fica explícito para revisão.</td>
+</tr>
+<tr>
+<td>CT08 – Indicadores</td>
+<td>Consultar período com e sem registros de horas diárias completas.</td>
+<td>MTTR respeita intervalos de trabalho ativo; dias sem registro não viram zero; MTBF por horas só considera cobertura válida quando habilitado.</td>
+</tr>
+<tr>
+<td>CT09 – Relatório mensal</td>
+<td>Consultar mês completo, mês corrente e limites de calendário.</td>
+<td>Filtros UTC, comparação e amostras seguem as regras; o relatório não apresenta dados futuros como concluídos.</td>
+</tr>
+<tr>
+<td>CT10 – Modo somente leitura</td>
+<td>Abrir a aplicação com leitura habilitada e tentar executar operação de escrita.</td>
+<td>Consultas permitidas; gravações recusadas pela interface e API; filas antigas não são enviadas.</td>
+</tr>
+</tbody>
+</table>
+<h2>4.3 Plano de Manutenção</h2>
+<table>
+<thead>
+<tr>
+<th>Tipo</th>
+<th>Aplicação prevista</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Corretiva</td>
+<td>Registrar o defeito, reproduzir em ambiente isolado, corrigir, executar regressão direcionada e publicar somente após aprovação.</td>
+</tr>
+<tr>
+<td>Adaptativa</td>
+<td>Atualizar dependências, navegador, .NET, PostgreSQL ou configuração de hospedagem após avaliar compatibilidade e segurança.</td>
+</tr>
+<tr>
+<td>Perfectiva</td>
+<td>Melhorar navegação, indicadores ou relatórios com base em feedback observado, mantendo escopo e regras validados.</td>
+</tr>
+<tr>
+<td>Preventiva</td>
+<td>Revisar logs e alertas sem dados sensíveis, aplicar atualizações de segurança, verificar backups/restauração e eliminar dados de demonstração obsoletos.</td>
+</tr>
+</tbody>
+</table>
+<p>Antes de qualquer alteração de esquema, deve-se produzir e revisar a migração, fazer backup verificável e testar restauração em ambiente separado. Deve existir responsável pela configuração de segredos, pelo acesso ao banco e pela política de retenção. Não se deve habilitar seed, geração automática de ordens, sincronização ou gravação em produção sem autorização, plano de retorno e monitoramento.</p>
+<h2>4.4 Revisão Técnica (Peer Review)</h2>
+<p>O material recebido contém feedback do docente responsável, mas não informa uma pessoa revisora par nem a data em que a revisão por pares foi executada. Para não atribuir uma revisão inexistente, este registro distingue o feedback docente da revisão entre integrantes. A equipe deve completar o campo de revisor e a data após realizar essa atividade.</p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Registro</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revisão documentada</td>
+<td>Feedback do docente responsável, Prof. MSc. Gustavo Martins Nunes Avellar; data do feedback não informada no material recebido.</td>
+</tr>
+<tr>
+<td>Revisão por pares</td>
+<td>Pendente de registro: informar integrante revisor e data após revisão cruzada.</td>
+</tr>
+<tr>
+<td>Itens revisados nesta versão</td>
+<td>Contexto e motivação; citações e referências; escopo e menção às ensacadeiras; posicionamento da Figura 1; nomes dos casos de uso; capítulo de desenvolvimento; imagens do sistema.</td>
+</tr>
+<tr>
+<td>Problemas apontados</td>
+<td>Faltavam citações no contexto/motivação; não se destacavam as máquinas ensacadeiras; a Figura 1 deveria aparecer na página 10; os títulos textuais tratavam os atores como casos de uso em vez de descrever objetivos/ações do ciclo da O.S.; o capítulo de desenvolvimento estava pendente e não havia imagens da aplicação.</td>
+</tr>
+<tr>
+<td>Ajustes realizados</td>
+<td>Incluídas citações autor-data no contexto; ensacadeiras explicitadas com ressalva de que o inventário deve ser confirmado; Figura 1 posicionada na página 10 do arquivo final; casos textuais intitulados por ações do diagrama; adicionados capítulos 3–5 e capturas rotuladas com dados sintéticos.</td>
+</tr>
+<tr>
+<td>Sugestões restantes</td>
+<td>Registrar a revisão por pares; validar fluxos e vocabulário com usuários da empresa; confirmar fórmulas oficiais e os dados reais dos ativos antes de qualquer piloto.</td>
+</tr>
+</tbody>
+</table>
+<h1>5. Desenvolvimento do Sistema</h1>
+<h2>5.1 Tecnologias e Ferramentas</h2>
+<p>O cliente foi implementado em C# com Blazor WebAssembly e componentes Razor. O estilo da interface utiliza CSS, Tailwind CSS e daisyUI. A API foi construída em ASP.NET Core sobre .NET 10, com endpoints MVC, autenticação por ASP.NET Core Identity e tokens JWT. O armazenamento utiliza PostgreSQL, Entity Framework Core e o provedor Npgsql. O Supabase pode hospedar a instância PostgreSQL existente. A equipe utilizou Visual Studio/VS Code, Node.js/npm para compilar os estilos e ferramentas .NET para build e testes.</p>
+<h2>5.2 Organização e Integração</h2>
+<p>O repositório está dividido em projetos:</p>
+<ul>
+<li><strong>ADSync.Domain:</strong> entidades, enums, exceções e interfaces do domínio;</li>
+<li><strong>ADSync.Application:</strong> DTOs, contratos e serviços de aplicação;</li>
+<li><strong>ADSync.Infrastructure:</strong> contexto Entity Framework, repositórios, Identity e serviços de persistência;</li>
+<li><strong>ADSync.Api:</strong> autenticação, autorização, controllers, configuração e integração HTTP;</li>
+<li><strong>ADSync.Client:</strong> telas Blazor, navegação, estado de sessão, consultas e experiência PWA;</li>
+<li><strong>tests/</strong> e <strong>tools/</strong>: verificações automatizadas e utilitários para ambientes isolados.</li>
+</ul>
+<p>As chamadas do cliente incluem o token de autenticação. A API valida identidade, papel e escopo da ordem antes de permitir a operação. Regras como atribuição, estoque, eventos de tempo, relatórios e indicadores ficam no servidor para evitar depender apenas das validações visuais do navegador.</p>
+<h2>5.3 Decisões Técnicas Relevantes</h2>
+<ol>
+<li><strong>Separação em camadas:</strong> a separação de domínio, aplicação, infraestrutura, API e cliente reduz acoplamento e facilita testar serviços sem interface.</li>
+<li><strong>Autorização no servidor:</strong> esconder um botão não é considerado controle suficiente; a API também valida o papel e os dados associados ao usuário.</li>
+<li><strong>Atribuição concorrente:</strong> a escolha de técnico e a gravação da O.S. são coordenadas no banco para evitar distribuição inconsistente em aberturas simultâneas.</li>
+<li><strong>Sincronização idempotente:</strong> eventos offline recebem identificador e recibo para que reenvios possam ser reconhecidos. Eventos com ordem temporal incompatível ou perda de atribuição não são silenciosamente aceitos.</li>
+<li><strong>Indicadores com ressalvas:</strong> o MTTR considera trabalho ativo registrado; o “intervalo entre chamados” disponível no painel não equivale ao MTBF físico por horas de operação. O cálculo por horas requer registros diários completos e pode ficar desabilitado.</li>
+<li><strong>Proteção de dados:</strong> configuração de conexão e chave JWT ficam fora do cliente e do repositório; modos de leitura e gravação são controlados por configuração. Os testes de gravação usam ambiente local isolado.</li>
+<li><strong>Offline condicionado:</strong> armazenamento local protege a pendência, mas não significa que a API já confirmou a operação. A interface deve manter a distinção entre registro no dispositivo e sincronização confirmada.</li>
+</ol>
+<h2>5.4 Desenvolvimento e Verificação</h2>
+<p>O desenvolvimento ocorreu em incrementos: modelagem das ordens e perfis; construção de endpoints e telas; aplicação das regras de acesso; implementação de registros de atendimento e estoque; criação de preventivas, indicadores e relatório mensal; e revisão da experiência offline. Os testes automatizados exercitam regras sem depender de interface e, quando necessário, usam PostgreSQL local com dados de teste.</p>
+<p>As capturas de tela deste documento foram feitas no cliente local com dados sintéticos. Elas ilustram o layout e a navegação, mas não constituem prova de implantação, homologação com a empresa ou medição de desempenho.</p>
+<h1>Glossário</h1>
+<table>
+<thead>
+<tr>
+<th>Termo</th>
+<th>Definição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API</td>
+<td>Interface que permite ao cliente solicitar operações e dados ao servidor por HTTP.</td>
+</tr>
+<tr>
+<td>Ator</td>
+<td>Papel externo que interage com o sistema para atingir um objetivo.</td>
+</tr>
+<tr>
+<td>Caso de uso</td>
+<td>Descrição de um objetivo e da interação entre ator e sistema.</td>
+</tr>
+<tr>
+<td>DTO</td>
+<td>Objeto de transferência de dados entre componentes ou camadas.</td>
+</tr>
+<tr>
+<td>Ensacadeira</td>
+<td>Máquina que acondiciona produto em sacos; no projeto, equipamento do processo de ensaque a ser identificado no cadastro oficial.</td>
+</tr>
+<tr>
+<td>Entity Framework Core</td>
+<td>ORM .NET usado para mapear objetos do domínio para operações no banco de dados.</td>
+</tr>
+<tr>
+<td>Idempotência</td>
+<td>Propriedade que permite reenviar uma operação identificada sem aplicar novamente seus efeitos.</td>
+</tr>
+<tr>
+<td>Lean Development</td>
+<td>Abordagem de desenvolvimento que prioriza valor, ciclos curtos e redução de desperdício.</td>
+</tr>
+<tr>
+<td>MTBF</td>
+<td>Mean Time Between Failures; intervalo médio entre falhas. A medida baseada em horas exige horas efetivas de operação e critérios de falha definidos.</td>
+</tr>
+<tr>
+<td>MTTR</td>
+<td>Mean Time To Repair; no painel do projeto, média de trabalho ativo calculada a partir de registros válidos de início, pausa, retomada e conclusão.</td>
+</tr>
+<tr>
+<td>O.S.</td>
+<td>Ordem de serviço: registro de solicitação, execução e encerramento de manutenção.</td>
+</tr>
+<tr>
+<td>Offline-first</td>
+<td>Abordagem que permite registrar localmente certas operações e sincronizá-las quando a conexão retorna.</td>
+</tr>
+<tr>
+<td>PWA</td>
+<td>Progressive Web App: aplicação web que pode oferecer recursos de instalação e funcionamento offline por meio de tecnologias do navegador.</td>
+</tr>
+<tr>
+<td>Persona</td>
+<td>Representação fictícia de um perfil de usuário.</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>Sistema gerenciador de banco de dados relacional utilizado pelo ADSync.</td>
+</tr>
+<tr>
+<td>SLA</td>
+<td>Service Level Agreement; nível de serviço acordado. As metas oficiais da empresa ainda não foram definidas para o projeto.</td>
+</tr>
+<tr>
+<td>Stakeholder</td>
+<td>Pessoa, grupo ou organização com interesse ou impacto no projeto.</td>
+</tr>
+<tr>
+<td>Supabase</td>
+<td>Plataforma que pode hospedar e administrar serviços sobre PostgreSQL; não substitui a necessidade de configurar segurança e operação.</td>
+</tr>
+</tbody>
+</table>
+<h1>Referências</h1>
+<p>ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. <strong>ABNT NBR 5462: confiabilidade e mantenabilidade – terminologia</strong>. Rio de Janeiro: ABNT, 1994.</p>
+<p>COHN, M. <strong>User stories applied: for agile software development</strong>. Boston: Addison-Wesley, 2004.</p>
+<p>IBGE. Instituto Brasileiro de Geografia e Estatística. <strong>Acesso à Internet e à televisão e posse de telefone móvel celular para uso pessoal 2024: PNAD Contínua – Tecnologia da Informação e Comunicação</strong>. Rio de Janeiro: IBGE, 2025. Disponível em: https://biblioteca.ibge.gov.br/visualizacao/livros/liv102193_informativo.pdf. Acesso em: 16 nov. 2026.</p>
+<p>KARDEC, A.; NASCIF, J. <strong>Manutenção: função estratégica</strong>. 4. ed. Rio de Janeiro: Qualitymark, 2012.</p>
+<p>KLEPPMANN, M.; WIGGINS, A.; VAN HARDENBERG, P.; MCGRANAGHAN, M. Local-first software: you own your data, in spite of the cloud. In: ACM SIGPLAN INTERNATIONAL SYMPOSIUM ON NEW IDEAS, NEW PARADIGMS, AND REFLECTIONS ON PROGRAMMING AND SOFTWARE (ONWARD!), 2019, Athens. <strong>Proceedings</strong> [...]. New York: ACM, 2019. p. 154–178. Disponível em: https://inkandswitch.com/local-first/. Acesso em: 16 nov. 2026.</p>
+<p>MDN WEB DOCS. <strong>Offline and background operation</strong>. Mozilla, [s.d.]. Disponível em: https://developer.mozilla.org/en-US/docs/Web/Progressive_Web_Apps/Guides/Offline_and_background_operation. Acesso em: 16 nov. 2026.</p>
+<p>MELL, P.; GRANCE, T. <strong>The NIST definition of cloud computing</strong>. Gaithersburg: National Institute of Standards and Technology, 2011. (NIST Special Publication 800-145). Disponível em: https://doi.org/10.6028/NIST.SP.800-145. Acesso em: 16 nov. 2026.</p>
+<p>POPPENDIECK, M.; POPPENDIECK, T. <strong>Lean software development: an agile toolkit</strong>. Boston: Addison-Wesley, 2003.</p>
+<p>SOMMERVILLE, I. <strong>Engenharia de software</strong>. 10. ed. São Paulo: Pearson, 2019.</p>
+<p>VALENTIM, M. M. <strong>Propostas para melhoria da gestão da manutenção em uma indústria de produtos de higiene pessoal</strong>. 2020. 61 f. Trabalho de Conclusão de Curso (Bacharelado em Engenharia Mecânica) – Universidade Tecnológica Federal do Paraná, Londrina, 2020. Disponível em: https://repositorio.utfpr.edu.br/jspui/bitstream/1/24087/1/gestaomanutencaoindustriahigiene.pdf. Acesso em: 16 nov. 2026.</p>
+</body></html>

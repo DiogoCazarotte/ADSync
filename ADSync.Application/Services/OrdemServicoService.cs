@@ -83,6 +83,18 @@ public class OrdemServicoService : IOrdemServicoService
         return MapearResumo(criada!);
     }
 
+    public async Task<OrdemServicoDetalheDto> EditarDescricaoAsync(Guid id, Guid usuarioId, bool gestor, string descricao)
+    {
+        var os = await ObterOuFalharAsync(id);
+        if (!gestor && os.OperadorId != usuarioId)
+            throw new AcessoNegadoException("Você só pode editar a descrição das próprias ordens de serviço.");
+        if (string.IsNullOrWhiteSpace(descricao) || descricao.Length > 2000)
+            throw new RegraNegocioException("Informe uma descrição com até 2000 caracteres.");
+
+        os.DescricaoProblema = descricao.Trim();
+        return await SalvarEMapearAsync(os);
+    }
+
     public async Task<OrdemServicoDetalheDto?> ObterDetalheAsync(Guid id, Guid? tecnicoId = null, Guid? operadorId = null)
     {
         var os = await _repository.ObterDetalhadoAsync(id);
@@ -118,6 +130,9 @@ public class OrdemServicoService : IOrdemServicoService
     public async Task<OrdemServicoDetalheDto> IniciarAsync(Guid id, Guid usuarioId, DateTimeOffset? ocorridoEm)
     {
         var os = await ObterOuFalharAsync(id);
+        if (os.TipoManutencao == TipoManutencao.Preventiva &&
+            ADSync.Domain.CalendarioManutencao.Data(DateTimeOffset.UtcNow) < ADSync.Domain.CalendarioManutencao.Data(os.DataAbertura))
+            throw new RegraNegocioException("A data prevista da manutenção preventiva ainda não chegou.");
         os.Iniciar(usuarioId, ValidarQuando(ocorridoEm));
         return await SalvarEMapearAsync(os);
     }
@@ -137,12 +152,13 @@ public class OrdemServicoService : IOrdemServicoService
     }
 
     public async Task<OrdemServicoDetalheDto> ConcluirAsync(
-        Guid id, Guid usuarioId, Guid causaFalhaId, string? observacoes, DateTimeOffset? ocorridoEm)
+        Guid id, Guid usuarioId, Guid? causaFalhaId, string? observacoes, DateTimeOffset? ocorridoEm)
     {
         var os = await ObterOuFalharAsync(id);
 
-        var causa = await _causas.ObterPorIdAsync(causaFalhaId)
-            ?? throw new NaoEncontradoException("Causa de falha não encontrada.");
+        var causa = causaFalhaId.HasValue
+            ? await _causas.ObterPorIdAsync(causaFalhaId.Value) ?? throw new NaoEncontradoException("Causa de falha não encontrada.")
+            : null;
 
         os.Concluir(usuarioId, causa, observacoes, ValidarQuando(ocorridoEm));
         return await SalvarEMapearAsync(os);

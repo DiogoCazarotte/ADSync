@@ -1,0 +1,28 @@
+@using ADSync.Client.Services
+@inject NotificationService Notifications
+@implements IDisposable
+
+<aside class="notification-host @(InModal ? "modal-notifications" : "global-notifications")" aria-label="Notificações" aria-live="polite" aria-relevant="additions">
+    @foreach (var item in Notifications.Items)
+    {
+        <div class="app-notification notification-@item.Kind.ToString().ToLowerInvariant()" role="@(item.Kind == NotificationKind.Error ? "alert" : "status")" aria-atomic="true" @key="item.Id">
+            <span class="notification-icon" aria-hidden="true">@Icon(item.Kind)</span>
+            <p>@item.Message</p>
+            <button type="button" class="notification-close" aria-label="Fechar notificação" @onclick="() => Notifications.Dismiss(item.Id)">×</button>
+        </div>
+    }
+</aside>
+
+@code {
+    [Parameter] public bool InModal { get; set; }
+    protected override void OnInitialized() => Notifications.Changed += Changed;
+    void Changed() => _ = InvokeAsync(StateHasChanged);
+    static string Icon(NotificationKind kind) => kind switch
+    {
+        NotificationKind.Success => "✓",
+        NotificationKind.Warning => "!",
+        NotificationKind.Error => "!",
+        _ => "i"
+    };
+    public void Dispose() => Notifications.Changed -= Changed;
+}

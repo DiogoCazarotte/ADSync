@@ -1,9 +1,11 @@
-# O Node compila somente o CSS; não faz parte da imagem final.
+# O Node prepara CSS e Vue.js; não faz parte da imagem final.
 FROM node:22-bookworm-slim AS styles
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY ADSync.Client/ ADSync.Client/
+COPY tools/build-vendor.cjs tools/build-vendor.cjs
+RUN npm run build:vendor
 RUN npm run build:css
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
@@ -21,8 +23,9 @@ COPY ADSync.Infrastructure/ ADSync.Infrastructure/
 COPY ADSync.Api/ ADSync.Api/
 COPY ADSync.Client/ ADSync.Client/
 COPY --from=styles /src/ADSync.Client/wwwroot/css/app.css ADSync.Client/wwwroot/css/app.css
+COPY --from=styles /src/ADSync.Client/wwwroot/lib/vue/ ADSync.Client/wwwroot/lib/vue/
 RUN dotnet publish ADSync.Api/ADSync.Api.csproj -c Release --no-restore -o /out/api -p:UseAppHost=false \
-    && dotnet publish ADSync.Client/ADSync.Client.csproj -c Release --no-restore -o /out/client -p:SkipFrontendStyles=true
+    && dotnet publish ADSync.Client/ADSync.Client.csproj -c Release --no-restore -o /out/client -p:SkipFrontendStyles=true -p:SkipFrontendVendor=true
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app

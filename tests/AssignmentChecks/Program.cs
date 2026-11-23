@@ -225,7 +225,7 @@ try
     services.AddScoped<IOrdemServicoRepository, OrdemServicoRepository>();
     using var provider = services.BuildServiceProvider();
     var job = new GeracaoPreventivaBackgroundService(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<GeracaoPreventivaBackgroundService>.Instance);
-    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var today = ADSync.Domain.CalendarioManutencao.Data(DateTimeOffset.UtcNow);
     var dueId = Guid.NewGuid(); var inactiveId = Guid.NewGuid(); var futureId = Guid.NewGuid(); var inactiveTechId = Guid.NewGuid();
     await using (var db = new AdSyncDbContext(options))
     {
@@ -253,6 +253,54 @@ try
     }
     Check(await job.GerarPendentesAsync() == 1 && await job.GerarPendentesAsync() == 0, "Conclusão não liberou próxima geração ou houve duplicação.");
     Console.WriteLine("PASS: job preventivo concorrente gera uma única ordem; respeita inativos, vencimento, responsável, pausa e conclusão; avança a data sem duplicar.");
+
+    var startId = Guid.NewGuid(); var tomorrowId = Guid.NewGuid(); var disabledId = Guid.NewGuid();
+    await using (var db = new AdSyncDbContext(options))
+    {
+        foreach (var spec in new[] { (startId, today, true), (tomorrowId, today.AddDays(1), true), (disabledId, today, false) })
+            db.PlanosPreventivos.Add(new PlanoPreventivo { Id = spec.Item1, EquipamentoId = equipment, TecnicoResponsavelId = a,
+                Descricao = "Preventiva com atendimento", PeriodicidadeDias = 30, ProximaExecucao = spec.Item2, Ativo = spec.Item3 });
+        await db.SaveChangesAsync();
+    }
+    async Task<OrdemServicoDetalheDto> StartPreventive(Guid planId, Guid technicianId)
+    {
+        await using var db = new AdSyncDbContext(options);
+        return await new AtendimentoPreventivoService(db, new OrdemServicoRepository(db), Service(db), TimeProvider.System).IniciarAsync(planId, technicianId);
+    }
+    foreach (var spec in new[] { (tomorrowId, a, false), (disabledId, a, false), (startId, b, true) })
+    {
+        try { await StartPreventive(spec.Item1, spec.Item2); throw new Exception("Preventiva indevida iniciada."); }
+        catch (RegraNegocioException) when (!spec.Item3) { }
+        catch (AcessoNegadoException) when (spec.Item3) { }
+    }
+    await using (var db = new AdSyncDbContext(options))
+        Check(!await db.OrdensServico.AnyAsync(o => o.PlanoPreventivoId == startId || o.PlanoPreventivoId == tomorrowId || o.PlanoPreventivoId == disabledId), "Tentativa recusada gerou uma OS.");
+    var starts = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => StartPreventive(startId, a)));
+    Check(starts.Select(o => o.Id).Distinct().Count() == 1 && starts.All(o => o.Status == "EmAndamento" && o.Registros.Count == 1), "Início concorrente duplicou OS ou registros.");
+    var preventiveOrder = starts[0];
+    await using (var db = new AdSyncDbContext(options))
+    {
+        Check(await db.OrdensServico.CountAsync(o => o.PlanoPreventivoId == startId) == 1 &&
+            (await db.PlanosPreventivos.FindAsync(startId))!.ProximaExecucao == today.AddDays(30), "Geração não foi atômica com avanço da agenda.");
+        var plans = await new PlanoPreventivoService(new PlanoPreventivoRepository(db), new EquipamentoRepository(db), new UsuarioRepository(db)).ListarAsync(false, null);
+        Check(plans.Single(p => p.Id == startId).OrdemServicoId == preventiveOrder.Id && plans.Single(p => p.Id == startId).InicioLiberado,
+            "Plano perdeu acesso à OS quando a próxima data avançou.");
+        Check(!plans.Single(p => p.Id == tomorrowId).InicioLiberado, "Tela liberou a preventiva de amanhã.");
+    }
+    var finishedEvent = new EventoAtendimentoDto { Id = Guid.NewGuid(), OrdemServicoId = preventiveOrder.Id, Acao = "concluir",
+        OcorridoEm = DateTimeOffset.UtcNow, Observacoes = "Manutenção preventiva executada.", CausaFalhaId = null };
+    await using (var db = new AdSyncDbContext(options))
+    {
+        var finished = await new AtendimentoOfflineService(db, Service(db)).AplicarAsync(a, finishedEvent);
+        Check(finished.Status == "Concluida" && finished.DataConclusao.HasValue && finished.Registros.Count == 2, "Preventiva não concluiu pelo mesmo fluxo das corretivas.");
+    }
+    await using (var db = new AdSyncDbContext(options))
+    {
+        var reports = new RelatorioMensalService(new RelatorioMensalRepository(db), TimeProvider.System);
+        var month = await reports.ObterAsync(finishedEvent.OcorridoEm.Year, finishedEvent.OcorridoEm.Month);
+        Check(month.Resumo.Preventivas >= 1 && month.Atividades.Any(o => o.Id == preventiveOrder.Id), "Preventiva concluída não entrou no relatório mensal do banco.");
+    }
+    Console.WriteLine("PASS: início preventivo respeita responsável/data/inativos; concorrência gera uma OS e um início; conclusão sem falha sincroniza e consta no relatório mensal real.");
 }
 
 finally

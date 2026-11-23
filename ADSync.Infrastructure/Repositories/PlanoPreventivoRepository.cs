@@ -13,6 +13,7 @@ public class PlanoPreventivoRepository : IPlanoPreventivoRepository
 
     public Task<PlanoPreventivo?> ObterPorIdAsync(Guid id) =>
         _context.PlanosPreventivos
+            .Include(p => p.OrdensGeradas.Where(o => o.Status == StatusOS.Aberta || o.Status == StatusOS.EmAndamento || o.Status == StatusOS.Pausada))
             .Include(p => p.Equipamento)
             .Include(p => p.TecnicoResponsavel)
             .FirstOrDefaultAsync(p => p.Id == id);
@@ -21,6 +22,7 @@ public class PlanoPreventivoRepository : IPlanoPreventivoRepository
     {
         var query = _context.PlanosPreventivos
             .AsNoTracking()
+            .Include(p => p.OrdensGeradas.Where(o => o.Status == StatusOS.Aberta || o.Status == StatusOS.EmAndamento || o.Status == StatusOS.Pausada))
             .Include(p => p.Equipamento)
             .Include(p => p.TecnicoResponsavel)
             .AsQueryable();
@@ -44,6 +46,7 @@ public class PlanoPreventivoRepository : IPlanoPreventivoRepository
             .Where(p => p.Ativo
                 && p.Equipamento!.Ativo
                 && p.TecnicoResponsavel!.Ativo
+                && p.TecnicoResponsavel.TipoUsuario == TipoUsuario.Tecnico
                 && p.ProximaExecucao <= referencia
                 && !_context.OrdensServico.Any(os =>
                     os.PlanoPreventivoId == p.Id &&

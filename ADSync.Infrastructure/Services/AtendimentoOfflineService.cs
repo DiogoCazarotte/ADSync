@@ -41,7 +41,7 @@ public class AtendimentoOfflineService(AdSyncDbContext db, IOrdemServicoService 
             "pausar" => await service.PausarAsync(evento.OrdemServicoId, usuarioId, evento.Motivo ?? "", evento.OcorridoEm),
             "retomar" => await service.RetomarAsync(evento.OrdemServicoId, usuarioId, evento.OcorridoEm),
             "pecas" when evento.PecaId.HasValue && evento.Quantidade > 0 => await service.RegistrarPecaAsync(evento.OrdemServicoId, usuarioId, evento.PecaId.Value, evento.Quantidade),
-            "concluir" when evento.CausaFalhaId.HasValue => await service.ConcluirAsync(evento.OrdemServicoId, usuarioId, evento.CausaFalhaId.Value, evento.Observacoes, evento.OcorridoEm),
+            "concluir" => await service.ConcluirAsync(evento.OrdemServicoId, usuarioId, evento.CausaFalhaId, evento.Observacoes, evento.OcorridoEm),
             _ => throw new RegraNegocioException("Ação ou dados do atendimento inválidos.")
         };
         db.EventosSincronizados.Add(new EventoSincronizado { Id = evento.Id, OrdemServicoId = evento.OrdemServicoId,

@@ -2,6 +2,7 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 @inject ManutencaoClient Client
+@inject NotificationService Notifications
 @implements IAsyncDisposable
 
 <aside class="pwa-status" aria-label="Conexão e instalação">
@@ -14,7 +15,6 @@
     {
         <details><summary>Instalar no dispositivo</summary><p>No menu do navegador, escolha “Instalar aplicativo” ou “Adicionar à tela inicial”. No iPhone/iPad, use Compartilhar → Adicionar à Tela de Início.</p></details>
     }
-    @if (updateReady) { <p>Nova versão disponível. Após sincronizar as pendências, feche todas as janelas do ADSync e abra novamente.</p> }
 </aside>
 
 @code {
@@ -29,6 +29,10 @@
     }
     [JSInvokable] public Task PwaChanged(bool isOnline, bool installable, bool isInstalled, bool ready, bool update)
     {
+        if (online != isOnline)
+            Notifications.Show(isOnline ? "Conexão restabelecida." : "Você está sem conexão.", isOnline ? NotificationKind.Success : NotificationKind.Warning);
+        if (update && !updateReady)
+            Notifications.Show("Nova versão disponível. Após sincronizar as pendências, feche todas as janelas do ADSync e abra novamente.");
         online = isOnline; canInstall = installable; installed = isInstalled; offlineReady = ready; updateReady = update;
         return InvokeAsync(async () => { await OnlineChanged.InvokeAsync(isOnline); StateHasChanged(); });
     }
@@ -37,7 +41,11 @@
         _ = Client.ReconnectAsync();
         return Task.CompletedTask;
     }
-    async Task Install() => await JS.InvokeVoidAsync("nexPwa.install");
+    async Task Install()
+    {
+        try { await JS.InvokeVoidAsync("nexPwa.install"); }
+        catch (JSException) { Notifications.Error("Não foi possível iniciar a instalação. Tente novamente pelo menu do navegador."); }
+    }
     public async ValueTask DisposeAsync()
     {
         await JS.InvokeVoidAsync("nexPwa.disconnect");

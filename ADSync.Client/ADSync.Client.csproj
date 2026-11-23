@@ -19,6 +19,17 @@
 
   <ItemGroup><ProjectReference Include="..\ADSync.Application\ADSync.Application.csproj" /></ItemGroup>
 
+  <Target Name="BuildFrontendVendor" BeforeTargets="PrepareForBuild"
+          Inputs="../package-lock.json;../tools/build-vendor.cjs"
+          Outputs="wwwroot/lib/vue/vue.esm-browser.prod.js;wwwroot/lib/vue/LICENSE"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipFrontendVendor)' != 'true'">
+    <PropertyGroup>
+      <VendorNpm Condition="'$(OS)' == 'Windows_NT'">npm.cmd</VendorNpm>
+      <VendorNpm Condition="'$(OS)' != 'Windows_NT'">npm</VendorNpm>
+    </PropertyGroup>
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)/.." Command="$(VendorNpm) run build:vendor" />
+  </Target>
+
   <Target Name="BuildFrontendStyles" BeforeTargets="PrepareForBuild"
           Inputs="Styles/app.css;@(RazorComponent);../package.json;../package-lock.json"
           Outputs="wwwroot/css/app.css" Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipFrontendStyles)' != 'true'">

@@ -63,6 +63,16 @@ public class UsuariosController : ControllerBase
         return Ok(Map(perfil));
     }
 
+    [HttpPut("{id:guid}/senha")]
+    public async Task<ActionResult<UsuarioDto>> AlterarSenha(Guid id, AlterarSenhaUsuarioDto dto)
+    {
+        var perfil = await Find(id);
+        var conta = await _users.FindByIdAsync(id.ToString()) ?? throw new NaoEncontradoException("Conta não encontrada.");
+        var token = await _users.GeneratePasswordResetTokenAsync(conta);
+        Check(await _users.ResetPasswordAsync(conta, token, dto.NovaSenha));
+        return Ok(Map(perfil));
+    }
+
     [HttpPut("{id:guid}/situacao")]
     public async Task<ActionResult<UsuarioDto>> Situacao(Guid id, SituacaoUsuarioDto dto)
     {

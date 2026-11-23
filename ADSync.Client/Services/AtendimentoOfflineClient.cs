@@ -116,6 +116,20 @@ public sealed partial class ManutencaoClient
         return state;
     }
     public bool HasPending(Guid id) => pendingOrders.Contains(id);
+    public Task<OrdemServicoDetalheDto> StartPreventiveAsync(Guid planoId, Guid? ordemId) => Locked(async () =>
+    {
+        if (ReadOnlyMode || !Role("Tecnico")) throw new InvalidOperationException("Atendimento preventivo indisponível para este perfil.");
+        var state = TechnicalOfflineEnabled ? await Technical() : new();
+        if (ordemId.HasValue && state.Events.Any(e => e.OrdemServicoId == ordemId))
+            return state.Details.First(d => d.Id == ordemId);
+        var detail = await Send<OrdemServicoDetalheDto>(HttpMethod.Post, $"api/planos-preventivos/{planoId}/iniciar", new { });
+        if (TechnicalOfflineEnabled)
+        {
+            state.Details.RemoveAll(d => d.Id == detail.Id); state.Details.Add(detail);
+            await SaveTechnical(state);
+        }
+        return detail;
+    });
     public OrdemServicoDetalheDto? LocalDetail(Guid id) => technicalDetails.GetValueOrDefault(id);
     private async Task UpdatePending()
     {
@@ -253,6 +267,7 @@ public sealed partial class ManutencaoClient
         var d = JsonSerializer.Deserialize<OrdemServicoDetalheDto>(JsonSerializer.Serialize(source))!;
         if (d.TecnicoId is not Guid technician) throw new InvalidOperationException("Ordem sem técnico responsável.");
         var os = new OrdemServico { Id = d.Id, TecnicoId = technician, Status = Enum.Parse<StatusOS>(d.Status), DataAbertura = d.DataAbertura,
+            TipoManutencao = Enum.TryParse<TipoManutencao>(d.TipoManutencao, out var tipo) ? tipo : TipoManutencao.Corretiva,
             RegistrosTempo = d.Registros.Select(r => new OsRegistroTempo { Timestamp = r.Timestamp, TipoRegistro = Enum.Parse<TipoRegistroTempo>(r.Tipo), MotivoPausa = r.MotivoPausa }).ToList() };
         if (e.OcorridoEm < d.DataAbertura || d.Registros.Any(r => r.Timestamp > e.OcorridoEm)) throw new InvalidOperationException("Relógio do dispositivo anterior ao último registro da ordem.");
         switch (e.Acao)
@@ -261,8 +276,7 @@ public sealed partial class ManutencaoClient
             case "pausar": os.Pausar(technician, e.Motivo ?? "", e.OcorridoEm); break;
             case "retomar": os.Retomar(technician, e.OcorridoEm); break;
             case "concluir":
-                if (e.CausaFalhaId is null || e.CausaFalhaId == Guid.Empty) throw new InvalidOperationException("Selecione a causa da falha.");
-                os.Concluir(technician, new CausaFalha { Id = e.CausaFalhaId.Value, Ativo = true }, e.Observacoes, e.OcorridoEm);
+                os.Concluir(technician, e.CausaFalhaId is Guid causaId && causaId != Guid.Empty ? new CausaFalha { Id = causaId, Ativo = true } : null, e.Observacoes, e.OcorridoEm);
                 d.DataConclusao = e.OcorridoEm; d.ObservacoesTecnicas = e.Observacoes;
                 break;
             case "pecas":

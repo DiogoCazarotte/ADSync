@@ -4,6 +4,8 @@ using ADSync.Application.Services;
 using ADSync.Domain.Entities;
 using ADSync.Domain.Enums;
 using ADSync.Domain.Interfaces;
+using ADSync.Domain;
+using ADSync.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -75,6 +77,39 @@ Check(typeof(RelatoriosController).GetCustomAttributes(typeof(AuthorizeAttribute
 Check(typeof(RelatoriosController).GetCustomAttributes(typeof(ResponseCacheAttribute), true).Cast<ResponseCacheAttribute>().Single().NoStore, "Relatório financeiro permite cache HTTP.");
 Check((await controller.Mensal(2026, 11)).Result is OkObjectResult { Value: RelatorioMensalDto }, "Contrato da consulta mensal inválido.");
 Console.WriteLine("PASS: mês parcial, futuro, ano bissexto, janeiro, datas extremas, HTTP 400, acesso Gestor e cache desabilitado.");
+
+// Plano -> início/pausa/retomada/conclusão -> relatório, com a virada do dia em Brasília.
+var technician = new Usuario { Id = Guid.NewGuid(), TipoUsuario = TipoUsuario.Tecnico, Nome = "Técnico" };
+var plan = new PlanoPreventivo { Id = Guid.NewGuid(), Equipamento = e, EquipamentoId = e.Id,
+    TecnicoResponsavel = technician, TecnicoResponsavelId = technician.Id, ProximaExecucao = new(2026, 11, 20), PeriodicidadeDias = 30, Descricao = "Lubrificação" };
+Check(CalendarioManutencao.Data(At("2026-11-20T02:59:59Z")) == new DateOnly(2026, 11, 19), "Data mudou à meia-noite UTC.");
+try { plan.GerarOrdemServico("FUTURA", At("2026-11-20T02:59:59Z")); throw new Exception("Plano liberado antes do dia previsto."); }
+catch (RegraNegocioException) { }
+Check(plan.OrdensGeradas.Count == 0 && plan.ProximaExecucao == new DateOnly(2026, 11, 20), "Bloqueio antecipou a agenda.");
+var preventive = plan.GerarOrdemServico("PREV-01", At("2026-11-20T03:00:00Z"));
+try { preventive.Iniciar(technician.Id, At("2026-11-20T02:59:59Z")); throw new Exception("Início antecipado aceito."); }
+catch (RegraNegocioException) { }
+Check(preventive.Status == StatusOS.Aberta && preventive.RegistrosTempo.Count == 0, "Tentativa antecipada alterou a OS.");
+try { preventive.Iniciar(Guid.NewGuid(), At("2026-11-20T03:00:00Z")); throw new Exception("Outro técnico iniciou."); }
+catch (AcessoNegadoException) { }
+try { preventive.Concluir(technician.Id, null, null, At("2026-11-20T03:00:00Z")); throw new Exception("Concluiu sem iniciar."); }
+catch (RegraNegocioException) { }
+preventive.Iniciar(technician.Id, At("2026-11-20T03:00:00Z"));
+preventive.Pausar(technician.Id, "Aguardando liberação", At("2026-11-20T03:20:00Z"));
+preventive.Retomar(technician.Id, At("2026-11-20T03:30:00Z"));
+preventive.Concluir(technician.Id, null, "Lubrificação e inspeção concluídas.", At("2026-11-20T04:00:00Z"));
+var preventiveReport = await new RelatorioMensalService(new MemoryReports { Orders = [preventive] }, clock).ObterAsync(2026, 11);
+Check(preventiveReport.Resumo.Concluidas == 1 && preventiveReport.Resumo.Preventivas == 1 && preventiveReport.Resumo.Corretivas == 0,
+    "Preventiva concluída não entrou no relatório.");
+Check(preventiveReport.Resumo.HorasTrabalhadas == .83 && preventiveReport.Atividades.Single().Observacoes == preventive.ObservacoesTecnicas,
+    "Relatório perdeu as pausas ou as observações da preventiva.");
+Check(plan.ProximaExecucao == new DateOnly(2026, 12, 20), "Agenda não avançou uma periodicidade.");
+var corrective = new OrdemServico { TecnicoId = technician.Id };
+corrective.Iniciar(technician.Id, At("2026-11-20T03:00:00Z"));
+try { corrective.Concluir(technician.Id, null, null, At("2026-11-20T04:00:00Z")); throw new Exception("Corretiva concluiu sem causa."); }
+catch (RegraNegocioException) { }
+Check(corrective.Status == StatusOS.EmAndamento && corrective.RegistrosTempo.Count == 1, "Falha de validação finalizou corretiva.");
+Console.WriteLine("PASS: preventiva bloqueada antes da data em Brasília; somente responsável inicia; conclusão sem causa entra no relatório com tempos e observações; corretiva ainda exige causa.");
 
 sealed class FixedClock(DateTimeOffset now) : TimeProvider
 {

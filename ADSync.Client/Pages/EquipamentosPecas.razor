@@ -1,0 +1,123 @@
+@using ADSync.Application.DTOs
+@using ADSync.Client.Services
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ManutencaoClient Client
+
+<div class="inventory-page">
+    <header class="inventory-heading">
+        <h1>Equipamentos e peças</h1>
+        <p>Consulte os equipamentos, seus históricos e as peças em estoque.</p>
+    </header>
+    @if (loading) { <p role="status">Carregando equipamentos…</p> }
+    @if (!string.IsNullOrEmpty(loadError)) { <p role="alert">@loadError</p> }
+    <div @ref="vueHost"></div>
+</div>
+
+@if (selectedEquipment is { } selected)
+{
+    <AppModal Title="Histórico do equipamento" OnClose="() => selectedEquipment = null">
+        <div class="inventory-history-heading"><h3>@selected.Nome</h3><p>@selected.CodigoPatrimonio · @selected.Setor</p><p>Ordens disponíveis para seu perfil, da mais recente para a mais antiga.</p></div>
+        <p class="inventory-scroll-hint">Deslize a tabela para ver todas as colunas →</p>
+        <div class="inventory-table-scroll" role="region" aria-label="Histórico de ordens de serviço" tabindex="0">
+            <table class="inventory-table inventory-history-table">
+                <thead><tr><th scope="col">O.S.</th><th scope="col">Abertura</th><th scope="col">Situação</th><th scope="col">Descrição do problema</th></tr></thead>
+                <tbody>
+                    @foreach (var order in History(selected).OrderByDescending(o => o.DataAbertura))
+                    {
+                        <tr @key="order.Id"><th scope="row" class="inventory-code">@order.NumeroOS</th><td>@order.DataAbertura.ToLocalTime().ToString("dd/MM/yyyy")</td><td><span class="inventory-tag">@StatusLabel(order.Status)</span></td><td>@order.DescricaoProblema</td></tr>
+                    }
+                    @if (!History(selected).Any()) { <tr><td colspan="4" class="inventory-empty">Nenhuma ordem disponível para seu perfil.</td></tr> }
+                </tbody>
+            </table>
+        </div>
+    </AppModal>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<EquipamentoDto> Equipment { get; set; } = [];
+    [Parameter] public IReadOnlyList<PecaDto> Parts { get; set; } = [];
+    [Parameter] public IReadOnlyList<OrdemServicoDto> Orders { get; set; } = [];
+
+    ElementReference vueHost;
+    IJSObjectReference? module;
+    DotNetObjectReference<EquipamentosPecas>? receiver;
+    IReadOnlyList<EquipamentoDto>? sourceEquipment;
+    IReadOnlyList<EquipamentoDto> inventoryEquipment = [];
+    EquipamentoDto? selectedEquipment;
+    bool loading = true, canSeeInactive, disposed, renderFailed;
+    string? loadError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ReferenceEquals(sourceEquipment, Equipment)) return;
+        sourceEquipment = Equipment;
+        inventoryEquipment = Equipment;
+        loading = true;
+        renderFailed = false;
+        loadError = null;
+        canSeeInactive = false;
+        try
+        {
+            if (Client.Role("Gestor"))
+            {
+                inventoryEquipment = await Client.GetAsync<List<EquipamentoDto>>("api/equipamentos?incluirInativos=true");
+                canSeeInactive = true;
+            }
+        }
+        catch (Exception)
+        {
+            loadError = "Não foi possível consultar as máquinas inativas. Exibindo os equipamentos já carregados. Use Atualizar consultas para tentar novamente.";
+        }
+        finally { loading = false; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loading || disposed || renderFailed) return;
+        try
+        {
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./inventory.js");
+            if (disposed) return;
+            receiver ??= DotNetObjectReference.Create(this);
+            var counts = Orders.GroupBy(o => o.EquipamentoNome).ToDictionary(g => g.Key, g => g.Count());
+            await module.InvokeVoidAsync("mountOrUpdate", vueHost, new
+            {
+                equipment = inventoryEquipment.Select(e => new { e.Id, e.Nome, e.CodigoPatrimonio, e.Setor, e.Ativo, HistoryCount = counts.GetValueOrDefault(e.Nome) }),
+                parts = Parts,
+                canSeeInactive
+            }, receiver);
+        }
+        catch (JSException) when (!disposed)
+        {
+            loadError = "Não foi possível carregar as tabelas. Atualize a página para tentar novamente.";
+            // Evita repetir a importação em um ciclo de renderização após uma falha.
+            renderFailed = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    [JSInvokable]
+    public Task ShowHistory(string id) => InvokeAsync(() =>
+    {
+        if (disposed || !Guid.TryParse(id, out var equipmentId)) return;
+        selectedEquipment = inventoryEquipment.FirstOrDefault(e => e.Id == equipmentId);
+        StateHasChanged();
+    });
+
+    IEnumerable<OrdemServicoDto> History(EquipamentoDto equipment) => Orders.Where(o => o.EquipamentoNome == equipment.Nome);
+    static string StatusLabel(string status) => status switch
+    {
+        "EmAndamento" => "Em andamento",
+        "Concluida" => "Concluída",
+        _ => status
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        receiver?.Dispose();
+        if (module is not null) await module.DisposeAsync();
+        // inventory.js desmonta o Vue com MutationObserver quando o host sai do DOM.
+    }
+}

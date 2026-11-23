@@ -111,6 +111,7 @@ builder.Services.AddScoped<ICausaFalhaRepository, CausaFalhaRepository>();
 builder.Services.AddScoped<IEquipamentoRepository, EquipamentoRepository>();
 builder.Services.AddScoped<IOrdemServicoService, OrdemServicoService>();
 builder.Services.AddScoped<ADSync.Infrastructure.Services.AtendimentoOfflineService>();
+builder.Services.AddScoped<ADSync.Infrastructure.Services.AtendimentoPreventivoService>();
 builder.Services.AddScoped<IEquipamentoService, EquipamentoService>();
 builder.Services.AddScoped<ICausaFalhaService, CausaFalhaService>();
 builder.Services.AddScoped<IPecaService, PecaService>();

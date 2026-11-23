@@ -2,22 +2,21 @@
 @using ADSync.Domain.Enums
 @using ADSync.Client.Services
 @inject ManutencaoClient Client
+@inject NotificationService Notifications
 
 @if (Client.Role("Gestor"))
 {
     <h1>Usuários</h1>
     <p>Gerencie o acesso de operadores, técnicos e gestores.</p>
-    @if (Client.ReadOnlyMode) { <p role="status">Somente leitura: alterações de usuários desativadas.</p> }
+    @if (Client.ReadOnlyMode) { <AppNotice Message="Somente leitura: alterações de usuários desativadas." Kind="NotificationKind.Warning" /> }
     <label>Buscar usuários<input @bind="search" @bind:event="oninput" /></label>
     <button type="button" disabled="@Busy" @onclick="Refresh">Atualizar usuários</button>
-    @if (error.Length > 0) { <p role="alert">@error</p> }
-    @if (message.Length > 0) { <p role="status">@message</p> }
     @if (!Client.ReadOnlyMode)
     {
-        <EditForm Model="draft" OnValidSubmit="Save" @key="draft">
-            <DataAnnotationsValidator /><ValidationSummary />
-            <fieldset class="card" disabled="@Busy">
-                <legend>@(editing is null ? "Novo usuário" : "Editar usuário")</legend>
+        <AppModal Inline="@(editing is null)" Title='@(editing is null ? "Novo usuário" : "Editar usuário")' Busy="Busy" OnClose="Reset" @key='("user-editor", editing)'>
+        <EditForm novalidate Model="draft" OnValidSubmit="Save" OnInvalidSubmit="Notifications.Validation" @key="draft">
+            <DataAnnotationsValidator />
+            <fieldset class="workspace" disabled="@Busy">
                 <label>Nome<InputText @bind-Value="draft.Nome" /></label>
                 <label>E-mail do usuário<InputText type="email" autocomplete="off" @bind-Value="draft.Email" /></label>
                 <label>Perfil<InputSelect aria-label="Perfil" @bind-Value="draft.TipoUsuario">
@@ -31,9 +30,28 @@
                     <p>Use ao menos 8 caracteres, com maiúscula, minúscula, número e símbolo.</p>
                 }
                 <button type="submit">Salvar usuário</button>
+                @if (editing is not null && passwordUserId is null)
+                {
+                    <button type="button" @onclick="StartPasswordChange">Alterar senha</button>
+                }
                 <button type="button" @onclick="Reset">Cancelar edição</button>
             </fieldset>
         </EditForm>
+        @if (editing is not null && passwordUserId == editing)
+        {
+            <EditForm novalidate Model="passwordDraft" OnValidSubmit="SavePassword" OnInvalidSubmit="Notifications.Validation" @key="passwordDraft">
+                <DataAnnotationsValidator />
+                <fieldset class="workspace" disabled="@Busy">
+                    <legend>Alterar senha</legend>
+                    <label>Nova senha<InputText type="password" autocomplete="new-password" maxlength="128" @bind-Value="passwordDraft.NovaSenha" /></label>
+                    <label>Confirmar nova senha<InputText type="password" autocomplete="new-password" maxlength="128" @bind-Value="passwordDraft.ConfirmarSenha" /></label>
+                    <p>Use ao menos 8 caracteres, com maiúscula, minúscula, número e símbolo. A alteração exige conexão.</p>
+                    <button type="submit">Salvar senha</button>
+                    <button type="button" @onclick="CancelPasswordChange">Cancelar alteração de senha</button>
+                </fieldset>
+            </EditForm>
+        }
+        </AppModal>
     }
     @if (loading) { <p role="status">Carregando usuários…</p> }
     else if (!Filtered.Any()) { <p>Nenhum usuário encontrado.</p> }
@@ -55,6 +73,8 @@
     [Parameter] public EventCallback OnSaved { get; set; }
     List<UsuarioDto> users = [];
     SalvarUsuarioDto draft = new CriarUsuarioDto();
+    AlterarSenhaUsuarioDto passwordDraft = new();
+    Guid? passwordUserId;
     Guid? editing;
     string search = "", error = "", message = "";
     bool working, loading;
@@ -73,15 +93,32 @@
         working = true; error = ""; message = "";
         try { await action(); }
         catch (Exception ex) { error = ex.Message; }
-        finally { working = false; }
+        finally { working = false; Notifications.Report(error, message); }
     }
     Task Refresh() => Run(Load);
-    void Reset() { editing = null; draft = new CriarUsuarioDto(); }
+    void Reset() { editing = null; draft = new CriarUsuarioDto(); CancelPasswordChange(); }
     void Edit(UsuarioDto u)
     {
+        error = message = "";
+        CancelPasswordChange();
         editing = u.Id;
         draft = new SalvarUsuarioDto { Nome = u.Nome, Email = u.Email, TipoUsuario = Enum.Parse<TipoUsuario>(u.TipoUsuario) };
     }
+    void StartPasswordChange()
+    {
+        if (editing is not Guid id) return;
+        error = message = "";
+        passwordDraft = new();
+        passwordUserId = id;
+    }
+    void CancelPasswordChange() { passwordUserId = null; passwordDraft = new(); }
+    Task SavePassword() => Run(async () =>
+    {
+        if (passwordUserId is not Guid id) return;
+        var user = await Client.PutAsync<UsuarioDto>($"api/usuarios/{id}/senha", passwordDraft);
+        CancelPasswordChange();
+        message = $"Senha de {user.Nome} alterada com sucesso.";
+    });
     Task Save() => Run(async () =>
     {
         if (editing is Guid id) await Client.PutAsync<UsuarioDto>($"api/usuarios/{id}", draft);

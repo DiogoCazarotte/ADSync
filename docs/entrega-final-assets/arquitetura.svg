@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#284c7a"/>
+    </marker>
+    <style>
+      text{font-family:Arial,sans-serif;fill:#162c48}
+      .box{fill:#f4f8fc;stroke:#284c7a;stroke-width:2;rx:14}
+      .local{fill:#fff6e8;stroke:#b66b14;stroke-width:2;rx:14}
+      .flow{stroke:#284c7a;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+      .title{font-size:24px;font-weight:bold}
+      .head{font-size:20px;font-weight:bold}
+      .label{font-size:16px}
+      .small{font-size:14px;fill:#465a70}
+    </style>
+  </defs>
+  <rect width="960" height="500" fill="white"/>
+  <text x="480" y="42" text-anchor="middle" class="title">Arquitetura conceitual do ADSync</text>
+  <rect x="45" y="120" width="245" height="190" class="box"/>
+  <text x="167" y="158" text-anchor="middle" class="head">Cliente Web / PWA</text>
+  <text x="167" y="194" text-anchor="middle" class="label">Blazor WebAssembly</text>
+  <text x="167" y="224" text-anchor="middle" class="label">Interface por perfil</text>
+  <text x="167" y="254" text-anchor="middle" class="label">Fila local, se habilitada</text>
+  <text x="167" y="284" text-anchor="middle" class="small">Navegador do usuário</text>
+  <rect x="355" y="120" width="250" height="190" class="box"/>
+  <text x="480" y="158" text-anchor="middle" class="head">API</text>
+  <text x="480" y="194" text-anchor="middle" class="label">ASP.NET Core · .NET 10</text>
+  <text x="480" y="224" text-anchor="middle" class="label">Identity · JWT · autorização</text>
+  <text x="480" y="254" text-anchor="middle" class="label">Serviços e regras de domínio</text>
+  <text x="480" y="284" text-anchor="middle" class="small">Valida e confirma operações</text>
+  <rect x="670" y="120" width="245" height="190" class="box"/>
+  <text x="792" y="158" text-anchor="middle" class="head">Persistência</text>
+  <text x="792" y="194" text-anchor="middle" class="label">Entity Framework Core</text>
+  <text x="792" y="224" text-anchor="middle" class="label">Npgsql · PostgreSQL</text>
+  <text x="792" y="254" text-anchor="middle" class="label">Supabase opcional</text>
+  <text x="792" y="284" text-anchor="middle" class="small">Dados e transações</text>
+  <path d="M290 195 H355" class="flow"/>
+  <text x="322" y="180" text-anchor="middle" class="small">HTTPS / JSON</text>
+  <path d="M605 195 H670" class="flow"/>
+  <text x="638" y="180" text-anchor="middle" class="small">EF Core</text>
+  <rect x="220" y="380" width="520" height="78" class="local"/>
+  <text x="480" y="412" text-anchor="middle" class="head">Sem conexão: registros locais pendentes</text>
+  <text x="480" y="440" text-anchor="middle" class="small">Sincronização posterior; confirmação continua sendo responsabilidade da API</text>
+  <path d="M167 310 V345 H355 V380" class="flow"/>
+  <path d="M480 380 V332" class="flow"/>
+  <text x="480" y="358" text-anchor="middle" class="small">reconexão</text>
+</svg>

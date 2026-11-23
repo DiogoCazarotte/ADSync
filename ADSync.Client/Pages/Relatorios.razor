@@ -2,6 +2,7 @@
 @using ADSync.Application.DTOs
 @using ADSync.Client.Services
 @inject ManutencaoClient Client
+@inject NotificationService Notifications
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -12,11 +13,10 @@
             <div><h1>Relatórios mensais</h1><p>O que foi realizado, o que merece atenção e os próximos cuidados.</p></div>
             <button type="button" disabled="@(working || data is null)" @onclick="Print">Imprimir / salvar PDF</button>
         </div>
-        <form class="report-filters" @onsubmit="Refresh" @onsubmit:preventDefault>
+        <form novalidate class="report-filters" @onsubmit="Refresh" @onsubmit:preventDefault>
             <label>Mês de referência<input aria-label="Mês de referência" type="month" required max="@DateTime.UtcNow.ToString("yyyy-MM")" value="@month" @onchange="e => month = e.Value?.ToString() ?? string.Empty" disabled="@working" /></label>
             <button type="submit" disabled="@working">@(working ? "Gerando…" : "Gerar relatório")</button>
         </form>
-        @if (!string.IsNullOrEmpty(error)) { <p class="message" role="alert">@error</p> }
         @if (working) { <p role="status">Consultando atividades e preparando o relatório…</p> }
         @if (data is { } report)
         {
@@ -141,7 +141,7 @@
         if (working || !Client.Role("Gestor")) return;
         error = "";
         if (!DateOnly.TryParseExact(month + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var start) || start.Year > 9998 || start > DateOnly.FromDateTime(DateTime.UtcNow))
-        { error = "Selecione o mês atual ou um mês anterior válido."; return; }
+        { Notifications.Error("Selecione o mês atual ou um mês anterior válido."); return; }
         working = true;
         try
         {
@@ -149,7 +149,7 @@
             costPerHour = avoidedHours = null; financialEvidence = "";
         }
         catch (Exception ex) { error = $"Não foi possível gerar o relatório. {ex.Message}" + (data is null ? "" : " A consulta anterior continua exibida com o mês e a emissão originais."); }
-        finally { working = false; }
+        finally { working = false; Notifications.Error(error); }
     }
     async Task Print()
     {
@@ -159,7 +159,7 @@
             printModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./reports.js");
             await printModule.InvokeVoidAsync("printReport", documentElement);
         }
-        catch (JSException) { error = "Não foi possível abrir a impressão. Tente novamente e escolha Salvar como PDF no diálogo do navegador."; }
+        catch (JSException) { Notifications.Error("Não foi possível abrir a impressão. Tente novamente e escolha Salvar como PDF no diálogo do navegador."); }
     }
     static string Date(DateOnly date) => date.ToString("dd/MM/yyyy", Pt);
     static string Number(double? value) => value?.ToString("N1", Pt) ?? "—";

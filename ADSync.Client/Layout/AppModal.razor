@@ -1,0 +1,60 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@if (Inline)
+{
+    <section class="card" aria-label="@Title">
+        <h2>@Title</h2>
+        @ChildContent
+    </section>
+}
+else
+{
+    <dialog @ref="dialog" class="app-modal" aria-labelledby="@titleId" aria-modal="true">
+        <header class="app-modal-header">
+            <h2 id="@titleId">@Title</h2>
+            <button type="button" class="app-modal-close" aria-label="Fechar janela" disabled="@Busy" @onclick="RequestClose">×</button>
+        </header>
+        <div class="app-modal-body">
+            <fieldset class="workspace" disabled="@Busy" aria-busy="@(Busy ? "true" : "false")">
+                @ChildContent
+            </fieldset>
+            @if (Busy) { <p role="status">Processando…</p> }
+        </div>
+        <NotificationHost InModal="true" />
+    </dialog>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public bool Inline { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    readonly string titleId = $"modal-{Guid.NewGuid():N}";
+    ElementReference dialog;
+    IJSObjectReference? module;
+    DotNetObjectReference<AppModal>? receiver;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Inline) return;
+        module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./modal.js");
+        receiver ??= DotNetObjectReference.Create(this);
+        await module.InvokeVoidAsync("open", dialog, receiver, Busy);
+    }
+
+    [JSInvokable]
+    public Task RequestClose() => Busy ? Task.CompletedTask : OnClose.InvokeAsync();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            await module.InvokeVoidAsync("close", dialog);
+            await module.DisposeAsync();
+        }
+        receiver?.Dispose();
+    }
+}
