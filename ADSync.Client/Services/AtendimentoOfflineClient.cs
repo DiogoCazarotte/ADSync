@@ -153,11 +153,15 @@ public sealed partial class ManutencaoClient
     {
         await UpdatePending();
         foreach (var order in orders)
-            if (HasPending(order.Id) && LocalDetail(order.Id) is { } d)
-            { order.Status = d.Status; order.DataConclusao = d.DataConclusao; }
+        {
+            if (LocalDetail(order.Id) is not { } d) continue;
+            // Completa resumos de cache antigo pelo ID da própria O.S.
+            if (order.EquipamentoId == Guid.Empty) order.EquipamentoId = d.EquipamentoId;
+            if (HasPending(order.Id)) { order.Status = d.Status; order.DataConclusao = d.DataConclusao; }
+        }
         foreach (var d in technicalDetails.Values.Where(d => HasPending(d.Id) && orders.All(o => o.Id != d.Id)))
             orders.Add(new OrdemServicoDto { Id = d.Id, NumeroOS = d.NumeroOS, Status = d.Status, Prioridade = d.Prioridade,
-                EquipamentoNome = d.EquipamentoNome, TecnicoNome = d.TecnicoNome, DescricaoProblema = d.DescricaoProblema,
+                EquipamentoId = d.EquipamentoId, EquipamentoNome = d.EquipamentoNome, TecnicoNome = d.TecnicoNome, DescricaoProblema = d.DescricaoProblema,
                 DataAbertura = d.DataAbertura, DataConclusao = d.DataConclusao });
         return orders;
     });
