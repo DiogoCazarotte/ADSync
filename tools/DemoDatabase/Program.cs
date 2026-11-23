@@ -17,7 +17,7 @@ sourceBuilder.MapEnum<PrioridadeOS>("prioridade_os_enum", nameTranslator: transl
 sourceBuilder.MapEnum<TipoRegistroTempo>("tipo_registro_tempo_enum", nameTranslator: translator);
 sourceBuilder.MapEnum<TipoManutencao>("tipo_manutencao_enum", nameTranslator: translator);
 await using var source = sourceBuilder.Build();
-var options = new DbContextOptionsBuilder<AdSyncDbContext>().UseNpgsql(source, o =>
+var options = new DbContextOptionsBuilder<AdSyncDbContext>().UseNpgsql(source, o =>//teste de commit
 {
     o.MapEnum<TipoUsuario>("tipo_usuario_enum", nameTranslator: translator);
     o.MapEnum<StatusOS>("status_os_enum", nameTranslator: translator);
