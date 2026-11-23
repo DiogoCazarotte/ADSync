@@ -229,6 +229,7 @@ public class OrdemServicoService : IOrdemServicoService
             Prioridade = os.Prioridade.ToString(),
             TipoManutencao = os.TipoManutencao.ToString(),
             GeradaAutomaticamente = os.PlanoPreventivoId != null,
+            EquipamentoId = os.EquipamentoId,
             EquipamentoNome = os.Equipamento?.Nome ?? string.Empty,
             OperadorNome = os.Operador?.Nome ?? string.Empty,
             TecnicoNome = os.Tecnico?.Nome,

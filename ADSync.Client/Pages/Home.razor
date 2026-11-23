@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @using ADSync.Application.DTOs
 @using ADSync.Client.Services
 @inject ManutencaoClient Client
@@ -101,7 +101,7 @@ else
         {
             <AppModal Title="Detalhes da ordem" Busy="Working" OnClose="CloseDetail">
                 <h3>@selectedOrder.NumeroOS • @selectedOrder.EquipamentoNome</h3><p>@selectedOrder.TipoManutencao • @selectedOrder.Status • @selectedOrder.Setor • Solicitante: @selectedOrder.OperadorNome</p><p>Responsável: @(selectedOrder.TecnicoNome ?? "A definir")</p><p>Trabalho ativo: @selectedOrder.TempoAtendimentoMinutos.ToString("N1") min (desconta pausas)</p>
-                <h3>Descrição do problema</h3>
+                <h3>@(selectedOrder.TipoManutencao == "Preventiva" ? "Atividade programada" : "Descrição do problema")</h3>
                 @if (CanEditDescription && editingDescription)
                 {
                     <EditForm novalidate Model="descriptionDraft" OnValidSubmit="SaveDescription" OnInvalidSubmit="Notifications.Validation" @key="descriptionDraft">
@@ -121,7 +121,14 @@ else
                     }
                 }
                 @if (Client.HasPending(selectedOrder.Id)) { <AppNotice Message="Atendimento salvo no dispositivo — pendente de sincronização. Status e estoque locais aguardam validação do servidor." Kind="NotificationKind.Warning" /> }
-                <p>Diagnóstico: @(selectedOrder.CausaFalha ?? "—") • @(selectedOrder.ObservacoesTecnicas ?? "—")</p>
+                @if (!string.IsNullOrWhiteSpace(selectedOrder.CausaFalha))
+                {
+                    <p><strong>Diagnóstico:</strong> @selectedOrder.CausaFalha</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(selectedOrder.ObservacoesTecnicas))
+                {
+                    <p><strong>@(selectedOrder.TipoManutencao == "Preventiva" ? "Atividades realizadas:" : "Intervenção técnica:")</strong> @selectedOrder.ObservacoesTecnicas</p>
+                }
                 @foreach(var r in selectedOrder.Registros) { <p>@r.Timestamp.ToLocalTime().ToString("g") • @r.Tipo • @r.MotivoPausa</p> }
                 @foreach(var p in selectedOrder.Pecas) { <p>@p.Nome • @p.Quantidade unidade(s)</p> }
                 @if (!Client.ReadOnlyMode && Client.Role("Gestor"))

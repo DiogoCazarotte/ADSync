@@ -169,23 +169,26 @@ public static class DbSeeder
 
         var pecas = new[]
         {
-            (Codigo: "ROL-6204", Nome: "Rolamento 6204 ZZ", Estoque: 12),
-            (Codigo: "ROL-6205", Nome: "Rolamento 6205 ZZ", Estoque: 8),
-            (Codigo: "COR-A45", Nome: "Correia em V A45", Estoque: 6),
-            (Codigo: "AGU-DPX5", Nome: "Agulha industrial DPx5 nº 16", Estoque: 100),
-            (Codigo: "SEN-IND-M12", Nome: "Sensor indutivo M12", Estoque: 5),
-            (Codigo: "PEN-3MM", Nome: "Peneira de aço 3 mm", Estoque: 4),
-            (Codigo: "RET-35527", Nome: "Retentor 35x52x7", Estoque: 10),
-            (Codigo: "FUS-10A", Nome: "Fusível 10 A", Estoque: 30),
-            (Codigo: "OLE-ISO220", Nome: "Óleo para redutor ISO VG 220 (1 L)", Estoque: 20),
-            (Codigo: "GRA-EP2", Nome: "Graxa EP2 (cartucho)", Estoque: 15),
+            // Criticidade depende do impacto da falta da peça na operação,
+            // não da quantidade em estoque. Valores iniciais revisáveis pelo gestor.
+            (Codigo: "ROL-6204", Nome: "Rolamento 6204 ZZ", Estoque: 12, Critica: true),
+            (Codigo: "ROL-6205", Nome: "Rolamento 6205 ZZ", Estoque: 8, Critica: true),
+            (Codigo: "COR-A45", Nome: "Correia em V A45", Estoque: 6, Critica: true),
+            (Codigo: "AGU-DPX5", Nome: "Agulha industrial DPx5 nº 16", Estoque: 100, Critica: false),
+            (Codigo: "SEN-IND-M12", Nome: "Sensor indutivo M12", Estoque: 5, Critica: true),
+            (Codigo: "PEN-3MM", Nome: "Peneira de aço 3 mm", Estoque: 4, Critica: true),
+            (Codigo: "RET-35527", Nome: "Retentor 35x52x7", Estoque: 10, Critica: false),
+            (Codigo: "FUS-10A", Nome: "Fusível 10 A", Estoque: 30, Critica: false),
+            (Codigo: "OLE-ISO220", Nome: "Óleo para redutor ISO VG 220 (1 L)", Estoque: 20, Critica: false),
+            (Codigo: "GRA-EP2", Nome: "Graxa EP2 (cartucho)", Estoque: 15, Critica: false),
         };
 
         context.Pecas.AddRange(pecas.Select(p => new Peca
         {
             Codigo = p.Codigo,
             Nome = p.Nome,
-            QuantidadeEstoque = p.Estoque
+            QuantidadeEstoque = p.Estoque,
+            Critica = p.Critica
         }));
 
         await context.SaveChangesAsync();

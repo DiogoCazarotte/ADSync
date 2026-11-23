@@ -1,4 +1,4 @@
-@using ADSync.Application.DTOs
+﻿@using ADSync.Application.DTOs
 @using ADSync.Client.Services
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -11,6 +11,10 @@
     </header>
     @if (loading) { <p role="status">Carregando equipamentos…</p> }
     @if (!string.IsNullOrEmpty(loadError)) { <p role="alert">@loadError</p> }
+    @if (Orders.Any(o => o.EquipamentoId == Guid.Empty))
+    {
+        <p role="status">Histórico parcialmente disponível: algumas ordens estão em um cache antigo. Use Atualizar consultas quando estiver online.</p>
+    }
     <div @ref="vueHost"></div>
 </div>
 
@@ -25,7 +29,7 @@
                 <tbody>
                     @foreach (var order in History(selected).OrderByDescending(o => o.DataAbertura))
                     {
-                        <tr @key="order.Id"><th scope="row" class="inventory-code">@order.NumeroOS</th><td>@order.DataAbertura.ToLocalTime().ToString("dd/MM/yyyy")</td><td><span class="inventory-tag">@StatusLabel(order.Status)</span></td><td>@order.DescricaoProblema</td></tr>
+                        <tr @key="order.Id"><th scope="row" class="inventory-code">@order.NumeroOS</th><td class="inventory-history-date">@order.DataAbertura.ToLocalTime().ToString("dd/MM/yyyy")</td><td><span class="inventory-tag">@StatusLabel(order.Status)</span></td><td>@order.DescricaoProblema</td></tr>
                     }
                     @if (!History(selected).Any()) { <tr><td colspan="4" class="inventory-empty">Nenhuma ordem disponível para seu perfil.</td></tr> }
                 </tbody>
@@ -80,10 +84,10 @@
             module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./inventory.js");
             if (disposed) return;
             receiver ??= DotNetObjectReference.Create(this);
-            var counts = Orders.GroupBy(o => o.EquipamentoNome).ToDictionary(g => g.Key, g => g.Count());
+            var history = EquipmentHistory.Index(Orders);
             await module.InvokeVoidAsync("mountOrUpdate", vueHost, new
             {
-                equipment = inventoryEquipment.Select(e => new { e.Id, e.Nome, e.CodigoPatrimonio, e.Setor, e.Ativo, HistoryCount = counts.GetValueOrDefault(e.Nome) }),
+                equipment = inventoryEquipment.Select(e => new { e.Id, e.Nome, e.CodigoPatrimonio, e.Setor, e.Ativo, HistoryCount = history[e.Id].Count() }),
                 parts = Parts,
                 canSeeInactive
             }, receiver);
@@ -105,7 +109,7 @@
         StateHasChanged();
     });
 
-    IEnumerable<OrdemServicoDto> History(EquipamentoDto equipment) => Orders.Where(o => o.EquipamentoNome == equipment.Nome);
+    IEnumerable<OrdemServicoDto> History(EquipamentoDto equipment) => EquipmentHistory.Index(Orders)[equipment.Id];
     static string StatusLabel(string status) => status switch
     {
         "EmAndamento" => "Em andamento",
